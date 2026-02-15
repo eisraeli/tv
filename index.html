@@ -1,14 +1,20 @@
 <!DOCTYPE html>
-<html>
-<head>  <title>TV</title>
+<html lang="he">
+<head>
+  <meta charset="utf-8">
+  <title>TV</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="google-site-verification" content="jDk1s6N-IOBTrNM4PV6WqMvZVyTrDHe8nv0tHPHHvaQ" />
   <link rel="icon" href="https://i.imgur.com/opmOlZ5.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  
 </head>
-<body>  <!-- Header -->  <div class="header">
+<body>
+  <!-- Header -->
+  <div class="header">
     <div class="header-left">
       <div class="logo">TV</div>
       <button id="backButton">← Back to Channels</button>
@@ -34,12 +40,8 @@
         <div class="favorites-header">Favorites</div>
         <div id="favoriteChannels"></div>
       </div>
-      <div class="recent-section" id="recentSection" style="display: none;">
-        <div class="recent-header">Recently Watched</div>
-        <div id="recentChannels"></div>
-      </div>
-      <div style="padding: 1rem 0; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem;">
-        <h3 style="margin: 0; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">All Channels</h3>
+      <div class="all-channels-header">
+        <h3>All Channels</h3>
       </div>
       <div id="menuChannels">
         <!-- Menu items will be populated here -->
@@ -74,10 +76,10 @@
     </div>
   </div>
   <div id="channel-input-display" class="hidden">
-      <span>_</span>
-      <span>_</span>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="script.js"></script>
-  </body>
+    <span>_</span>
+    <span>_</span>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15"></script>
+  <script src="script.js"></script>
+</body>
 </html>
