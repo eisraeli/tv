@@ -1116,6 +1116,14 @@ function toggleMultiView() {
   }
 }
 
+// Default channels for multi-view 2x2 grid
+const MULTIVIEW_DEFAULT_CHANNELS = [
+  '11-kanal-il',
+  '12-kanal-il',
+  '13-kanal-il',
+  '14-kanal-il',
+];
+
 function enterMultiView() {
   isMultiViewMode = true;
   const multiViewContainer = document.getElementById('multiViewContainer');
@@ -1129,6 +1137,16 @@ function enterMultiView() {
   backButtonEl.style.display = 'none';
 
   createVideoGrid(currentGridLayout);
+
+  // Auto-load default channels into empty slots
+  if (window.allChannels && multiViewSlots.every(s => !s)) {
+    MULTIVIEW_DEFAULT_CHANNELS.forEach((name, i) => {
+      const channel = window.allChannels.find(ch => ch.name === name);
+      if (channel && i < document.querySelectorAll('.video-slot').length) {
+        loadChannelInSlot(i, channel);
+      }
+    });
+  }
 }
 
 function exitMultiView() {
