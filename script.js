@@ -18,6 +18,7 @@ const menuSearchEl = document.getElementById('menuSearch');
 const multiViewContainerEl = document.getElementById('multiViewContainer');
 const multiViewGridEl = document.getElementById('multiViewGrid');
 const mvControlsEl = document.querySelector('.multi-view-controls');
+const pipButtonEl = document.getElementById('pipButton');
 
 // =============================================================================
 // Application state
@@ -46,6 +47,9 @@ let slotAbortControllers = [];
 // Numeric channel input state
 let channelInput = [];
 let channelInputTimer = null;
+
+// Current channel index for swipe navigation
+let currentChannelIndex = -1;
 
 // =============================================================================
 // Utilities
@@ -233,6 +237,31 @@ function updateMuteButtonVisibility(visible) {
   muteButtonEl.style.display = visible ? 'flex' : 'none';
 }
 
+function updatePipButtonVisibility(visible) {
+  if (!document.pictureInPictureEnabled) return;
+  pipButtonEl.style.display = visible ? 'flex' : 'none';
+}
+
+function setupPipListeners(videoElement) {
+  videoElement.addEventListener('enterpictureinpicture', () => {
+    pipButtonEl.classList.add('active');
+    pipButtonEl.textContent = '⧉';
+  });
+  videoElement.addEventListener('leavepictureinpicture', () => {
+    pipButtonEl.classList.remove('active');
+    pipButtonEl.textContent = '⧉';
+  });
+}
+
+function togglePip() {
+  if (!currentVideoElement) return;
+  if (document.pictureInPictureElement) {
+    document.exitPictureInPicture().catch(() => {});
+  } else {
+    currentVideoElement.requestPictureInPicture().catch(() => {});
+  }
+}
+
 function destroyActiveHls() {
   activeHlsInstances.forEach(hls => {
     try {
@@ -252,6 +281,7 @@ function showVideoView() {
   isPickerVisible = false;
   enableHeaderAutoHide();
   requestWakeLock();
+  updatePipButtonVisibility(true);
 }
 
 // =============================================================================
@@ -512,6 +542,7 @@ function toggleMute() {
 }
 
 muteButtonEl.addEventListener('click', toggleMute);
+pipButtonEl.addEventListener('click', togglePip);
 
 // =============================================================================
 // Playback functions
@@ -531,6 +562,7 @@ function playStream(url) {
     isMuted = false;
 
     currentVideoElement = videoElement;
+    setupPipListeners(videoElement);
 
     if (Hls.isSupported()) {
       const hls = new Hls(HLS_CONFIG);
@@ -585,6 +617,7 @@ function playVideoAndAudio(videoUrl, audioUrl) {
 
     currentVideoElement = videoElement;
     currentAudioElement = audioElement;
+    setupPipListeners(videoElement);
 
     function onReady() {
       videoContainerEl.innerHTML = '';
@@ -643,6 +676,11 @@ function playVideoAndAudio(videoUrl, audioUrl) {
 // Unified channel playback
 // =============================================================================
 function playChannel(channel) {
+  if (window.allChannels) {
+    const idx = window.allChannels.findIndex(ch => ch.name === channel.name);
+    if (idx >= 0) currentChannelIndex = idx;
+  }
+
   if (isMenuVisible) {
     toggleSideMenu();
   }
@@ -874,6 +912,10 @@ backButtonEl.addEventListener('click', function () {
     currentAudioElement = null;
     videoContainerEl.innerHTML = '';
     updateMuteButtonVisibility(false);
+    updatePipButtonVisibility(false);
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture().catch(() => {});
+    }
     releaseWakeLock();
   } else {
     toggleSideMenu();
@@ -1696,6 +1738,18 @@ document.addEventListener('keydown', function (e) {
     if (currentVideoElement) {
       togglePicker();
     }
+  } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    if (!window.allChannels || currentChannelIndex < 0 || isMultiViewMode) return;
+    e.preventDefault();
+    const total = window.allChannels.length;
+    const nextIndex = e.key === 'ArrowRight'
+      ? (currentChannelIndex + 1) % total
+      : (currentChannelIndex - 1 + total) % total;
+    const channel = window.allChannels[nextIndex];
+    if (channel) {
+      playChannelFromMenu(channel, nextIndex);
+      showToast(channel.name, 'info', 1500);
+    }
   } else if (e.key >= '0' && e.key <= '9') {
     handleNumericInput(e.key);
   }
@@ -1758,3 +1812,40 @@ function resetChannelInput() {
     channelInputTimer = null;
   }
 }
+
+// =============================================================================
+// Swipe to change channel (mobile)
+// =============================================================================
+(function setupSwipeNavigation() {
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  videoContainerEl.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+
+  videoContainerEl.addEventListener('touchend', (e) => {
+    if (isMultiViewMode || isPickerVisible) return;
+    if (!window.allChannels || currentChannelIndex < 0) return;
+
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+
+    if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
+
+    const total = window.allChannels.length;
+    let nextIndex;
+    if (dx < 0) {
+      nextIndex = (currentChannelIndex + 1) % total;
+    } else {
+      nextIndex = (currentChannelIndex - 1 + total) % total;
+    }
+
+    const channel = window.allChannels[nextIndex];
+    if (channel) {
+      playChannelFromMenu(channel, nextIndex);
+      showToast(channel.name, 'info', 1500);
+    }
+  }, { passive: true });
+})();
