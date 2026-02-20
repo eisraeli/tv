@@ -15,6 +15,9 @@ const channelInputSpans = channelInputDisplay
   : [];
 const globalSearchEl = document.getElementById('globalSearch');
 const menuSearchEl = document.getElementById('menuSearch');
+const multiViewContainerEl = document.getElementById('multiViewContainer');
+const multiViewGridEl = document.getElementById('multiViewGrid');
+const mvControlsEl = document.querySelector('.multi-view-controls');
 
 // =============================================================================
 // Application state
@@ -55,6 +58,17 @@ function debounce(fn, delay) {
   };
 }
 
+function releaseVideoElement(video) {
+  if (!video) return;
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+}
+
+function handleImageError() {
+  this.style.display = 'none';
+}
+
 // =============================================================================
 // Toast notifications
 // =============================================================================
@@ -75,6 +89,7 @@ function showToast(message, type = 'info', duration = 3000) {
   setTimeout(() => {
     toast.classList.add('leaving');
     toast.addEventListener('animationend', () => toast.remove());
+    setTimeout(() => toast.remove(), 500);
   }, duration);
 }
 
@@ -111,6 +126,7 @@ function isExcludedChannel(channelName) {
   if (normalizedName === 'wep' || normalizedName === 'we2') return true;
   if (normalizedName.includes('bloomberg')) return true;
   if (normalizedName.includes('foxlive')) return true;
+  if (normalizedName.includes('reuterstvus') || normalizedName === 'reuterstvus') return true;
   if (lowerName.includes('rick') && lowerName.includes('morty')) return true;
 
   return false;
@@ -119,6 +135,9 @@ function isExcludedChannel(channelName) {
 // Clean up stored channels from excluded list
 favorites = favorites.filter(ch => !isExcludedChannel(ch.name));
 safeSetItem('favoriteChannels', JSON.stringify(favorites));
+
+// Fast lookup set for favorite channel names (kept in sync with favorites array)
+const favoriteNames = new Set(favorites.map(ch => ch.name));
 
 // Remove legacy recentChannels data if present
 safeSetItem('recentChannels', '');
@@ -155,9 +174,26 @@ const HLS_CONFIG = {
   enableWorker: true,            // Demux in Web Worker (avoids main-thread jank)
 };
 
+// Multi-view: same resilient buffering, but drop the back-buffer since
+// users aren't seeking back on individual multi-view tiles.
+const HLS_MULTIVIEW_CONFIG = {
+  ...HLS_CONFIG,
+  backBufferLength: 0,
+};
+
 // =============================================================================
 // Shared helpers & constants
 // =============================================================================
+// Supplemental English live news channels (free public streams)
+const SUPPLEMENTAL_CHANNELS = [
+  {
+    name: 'Sky News',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/74/Sky_News_logo.svg/512px-Sky_News_logo.svg.png',
+    url: 'https://linear417-gb-hls1-prd-ak.cdn.skycdp.com/100e/Content/HLS_001_1080_30/Live/channel(skynews)/index_1080-30.m3u8',
+    groupTitle: 'Live News',
+  },
+];
+
 const MAKO_IFRAME_URL =
   'https://www.mako.co.il/AjaxPage?jspName=embedHTML5video.jsp' +
   '&galleryChannelId=7c5076a9b8757810VgnVCM100000700a10acRCRD' +
@@ -319,8 +355,7 @@ function disableHeaderAutoHide() {
   isAutoHideActive = false;
   headerEl.classList.remove('auto-hide', 'visible');
   // Also hide multi-view controls bar
-  const mvControls = document.querySelector('.multi-view-controls');
-  if (mvControls) mvControls.classList.remove('visible');
+  if (mvControlsEl) mvControlsEl.classList.remove('visible');
   if (overlayHideTimer) {
     clearTimeout(overlayHideTimer);
     overlayHideTimer = null;
@@ -331,25 +366,27 @@ function showOverlaysTemporarily() {
   if (!isAutoHideActive) return;
   headerEl.classList.add('visible');
   // Also show multi-view controls if in multi-view mode
-  if (isMultiViewMode) {
-    const mvControls = document.querySelector('.multi-view-controls');
-    if (mvControls) mvControls.classList.add('visible');
+  if (isMultiViewMode && mvControlsEl) {
+    mvControlsEl.classList.add('visible');
   }
   if (overlayHideTimer) clearTimeout(overlayHideTimer);
   overlayHideTimer = setTimeout(() => {
     headerEl.classList.remove('visible');
-    if (isMultiViewMode) {
-      const mvControls = document.querySelector('.multi-view-controls');
-      if (mvControls) mvControls.classList.remove('visible');
+    if (isMultiViewMode && mvControlsEl) {
+      mvControlsEl.classList.remove('visible');
     }
   }, 3000);
 }
 
-// Show overlays when mouse moves (during playback)
+// Show overlays when mouse moves (during playback), throttled via rAF
+let mouseMoveScheduled = false;
 document.addEventListener('mousemove', () => {
-  if (isAutoHideActive) {
+  if (!isAutoHideActive || mouseMoveScheduled) return;
+  mouseMoveScheduled = true;
+  requestAnimationFrame(() => {
     showOverlaysTemporarily();
-  }
+    mouseMoveScheduled = false;
+  });
 });
 
 // Also show on touch start (mobile)
@@ -387,41 +424,33 @@ function releaseWakeLock() {
   }
 }
 
-// Re-acquire wake lock when tab becomes visible again (browsers release it on hide)
+// Re-acquire wake lock and resume playback when tab becomes visible
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentVideoElement) {
+  if (document.visibilityState !== 'visible') return;
+
+  if (currentVideoElement) {
     requestWakeLock();
+    if (currentVideoElement.paused) {
+      currentVideoElement.play().catch(() => {});
+    }
   }
+  if (currentAudioElement && currentAudioElement.paused) {
+    currentAudioElement.play().catch(() => {});
+  }
+
+  multiViewSlots.forEach(slot => {
+    if (slot && slot.video && slot.video.paused) {
+      slot.video.play().catch(() => {});
+    }
+  });
 });
 
 // Prevent accidental tab close / navigation while a stream is playing
 window.addEventListener('beforeunload', (e) => {
   if (currentVideoElement || (multiViewSlots && multiViewSlots.some(s => s && s.video))) {
     e.preventDefault();
-    // Modern browsers ignore custom messages but still show a confirmation dialog
     e.returnValue = '';
   }
-});
-
-// Resume playback if browser paused video when tab was hidden
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
-
-  // Resume single-view playback
-  if (currentVideoElement && currentVideoElement.paused) {
-    console.log('Tab visible again, resuming playback...');
-    currentVideoElement.play().catch(() => {});
-  }
-  if (currentAudioElement && currentAudioElement.paused) {
-    currentAudioElement.play().catch(() => {});
-  }
-
-  // Resume multi-view playback
-  multiViewSlots.forEach(slot => {
-    if (slot && slot.video && slot.video.paused) {
-      slot.video.play().catch(() => {});
-    }
-  });
 });
 
 // Network reconnection: when connection comes back, restart HLS loading
@@ -490,7 +519,9 @@ muteButtonEl.addEventListener('click', toggleMute);
 function playStream(url) {
   return new Promise((resolve, reject) => {
     destroyActiveHls();
-    currentAudioElement = null; // Clear dual-stream audio
+    releaseVideoElement(currentVideoElement);
+    releaseVideoElement(currentAudioElement);
+    currentAudioElement = null;
 
     const videoElement = document.createElement('video');
     videoElement.className = 'video-element';
@@ -537,6 +568,8 @@ function playStream(url) {
 function playVideoAndAudio(videoUrl, audioUrl) {
   return new Promise((resolve, reject) => {
     destroyActiveHls();
+    releaseVideoElement(currentVideoElement);
+    releaseVideoElement(currentAudioElement);
 
     const videoElement = document.createElement('video');
     videoElement.className = 'video-element';
@@ -589,7 +622,13 @@ function playVideoAndAudio(videoUrl, audioUrl) {
       hlsAudio.attachMedia(audioElement);
       setupHlsErrorRecovery(hlsAudio);
 
-      hlsVideo.on(Hls.Events.MANIFEST_PARSED, onReady);
+      let videoReady = false;
+      let audioReady = false;
+      function checkBothReady() {
+        if (videoReady && audioReady) onReady();
+      }
+      hlsVideo.on(Hls.Events.MANIFEST_PARSED, () => { videoReady = true; checkBothReady(); });
+      hlsAudio.on(Hls.Events.MANIFEST_PARSED, () => { audioReady = true; checkBothReady(); });
     } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
       videoElement.src = videoUrl;
       audioElement.src = audioUrl;
@@ -610,10 +649,9 @@ function playChannel(channel) {
 
   if (channel.url.includes('php?m3u8')) {
     destroyActiveHls();
-    if (currentVideoElement) {
-      currentVideoElement.pause();
-      currentVideoElement = null;
-    }
+    releaseVideoElement(currentVideoElement);
+    releaseVideoElement(currentAudioElement);
+    currentVideoElement = null;
     currentAudioElement = null;
     const iframe = createMakoIframe();
     videoContainerEl.innerHTML = '';
@@ -641,8 +679,10 @@ function toggleFavorite(channel) {
   const index = favorites.findIndex(ch => ch.name === channel.name);
   if (index >= 0) {
     favorites.splice(index, 1);
+    favoriteNames.delete(channel.name);
   } else {
     favorites.push(channel);
+    favoriteNames.add(channel.name);
   }
   safeSetItem('favoriteChannels', JSON.stringify(favorites));
   updateFavoriteChannels();
@@ -665,7 +705,8 @@ function createMenuItemElement(channel, index, dataAttr) {
   const img = document.createElement('img');
   img.src = channel.logo;
   img.alt = channel.name;
-  img.onerror = function () { this.style.display = 'none'; };
+  img.loading = 'lazy';
+  img.onerror = handleImageError;
 
   const span = document.createElement('span');
   span.textContent = channel.name;
@@ -687,11 +728,13 @@ function updateFavoriteChannels() {
   if (favorites.length > 0) {
     favoritesSection.style.display = 'block';
     favoriteChannelsDiv.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     favorites.forEach(channel => {
-      favoriteChannelsDiv.appendChild(
+      fragment.appendChild(
         createMenuItemElement(channel, -1, 'favorite')
       );
     });
+    favoriteChannelsDiv.appendChild(fragment);
   } else {
     favoritesSection.style.display = 'none';
   }
@@ -704,7 +747,7 @@ function updateChannelButtons() {
     if (channelName) {
       const favoriteBtn = button.querySelector('.favorite-btn');
       if (favoriteBtn) {
-        if (favorites.some(ch => ch.name === channelName)) {
+        if (favoriteNames.has(channelName)) {
           favoriteBtn.classList.add('active');
           favoriteBtn.textContent = '⭐';
         } else {
@@ -742,6 +785,7 @@ function createButton(name, logo, url, groupTitle) {
   const img = document.createElement('img');
   img.src = logo;
   img.alt = name;
+  img.loading = 'lazy';
   img.onerror = function () {
     this.style.display = 'none';
     const fallback = document.createElement('div');
@@ -751,13 +795,11 @@ function createButton(name, logo, url, groupTitle) {
   };
   button.appendChild(img);
 
-  // Favorite button
   const favoriteBtn = document.createElement('button');
   favoriteBtn.className = 'favorite-btn';
-  favoriteBtn.textContent = favorites.some(ch => ch.name === name)
-    ? '⭐'
-    : '☆';
-  if (favorites.some(ch => ch.name === name)) {
+  const isFav = favoriteNames.has(name);
+  favoriteBtn.textContent = isFav ? '⭐' : '☆';
+  if (isFav) {
     favoriteBtn.classList.add('active');
   }
   favoriteBtn.addEventListener('click', (e) => {
@@ -825,12 +867,11 @@ function togglePicker() {
 backButtonEl.addEventListener('click', function () {
   if (!isPickerVisible) {
     showPicker();
-    if (currentVideoElement) {
-      currentVideoElement.pause();
-      currentVideoElement = null;
-    }
-    currentAudioElement = null; // Clear dual-stream audio ref
     destroyActiveHls();
+    releaseVideoElement(currentVideoElement);
+    releaseVideoElement(currentAudioElement);
+    currentVideoElement = null;
+    currentAudioElement = null;
     videoContainerEl.innerHTML = '';
     updateMuteButtonVisibility(false);
     releaseWakeLock();
@@ -871,15 +912,14 @@ function start() {
             channels.push(currentChannel);
             currentChannel = {};
           }
-          const nameMatch = line.match(/tvg-id="([^"]+)"/);
-          const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-          const groupTitleMatch = line.match(/group-title="([^"]+)"/);
-          if (nameMatch && logoMatch) {
-            currentChannel.name = nameMatch[1];
-            currentChannel.logo = logoMatch[1];
-            currentChannel.groupTitle = groupTitleMatch
-              ? groupTitleMatch[1]
-              : 'Other';
+          const attrs = {};
+          for (const [, k, v] of line.matchAll(/(tvg-id|tvg-logo|group-title)="([^"]+)"/g)) {
+            attrs[k] = v;
+          }
+          if (attrs['tvg-id'] && attrs['tvg-logo']) {
+            currentChannel.name = attrs['tvg-id'];
+            currentChannel.logo = attrs['tvg-logo'];
+            currentChannel.groupTitle = attrs['group-title'] || 'Other';
           }
         } else if (line.trim() !== '' && !line.startsWith('#')) {
           currentChannel.url = line;
@@ -895,23 +935,19 @@ function start() {
         channels.push(currentChannel);
       }
 
-      // Filter out non-working channels
-      const removedChannels = [];
-      const filteredChannels = channels.filter(channel => {
-        if (isExcludedChannel(channel.name)) {
-          removedChannels.push(channel.name);
-          return false;
-        }
-        return true;
-      });
-
+      const filteredChannels = channels.filter(ch => !isExcludedChannel(ch.name));
       const removedCount = channels.length - filteredChannels.length;
       if (removedCount > 0) {
-        console.log(
-          `Filtered out ${removedCount} non-working channel(s):`,
-          removedChannels
-        );
+        console.log(`Filtered out ${removedCount} non-working channel(s)`);
       }
+
+      // Append supplemental live news channels (skip duplicates by name)
+      const existingNames = new Set(filteredChannels.map(ch => ch.name));
+      SUPPLEMENTAL_CHANNELS.forEach(ch => {
+        if (!existingNames.has(ch.name)) {
+          filteredChannels.push(ch);
+        }
+      });
 
       // Populate UI
       updateMenuChannels(filteredChannels);
@@ -968,10 +1004,9 @@ function start() {
 // =============================================================================
 function updateMenuChannels(channels) {
   const menuChannelsDiv = document.getElementById('menuChannels');
-  const filtered = searchTerm
-    ? channels.filter(ch =>
-        ch.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  const lowerSearch = searchTerm ? searchTerm.toLowerCase() : '';
+  const filtered = lowerSearch
+    ? channels.filter(ch => ch.name.toLowerCase().includes(lowerSearch))
     : channels;
 
   menuChannelsDiv.innerHTML = '';
@@ -983,11 +1018,13 @@ function updateMenuChannels(channels) {
     msg.textContent = 'No channels found';
     menuChannelsDiv.appendChild(msg);
   } else {
+    const fragment = document.createDocumentFragment();
     filtered.forEach((channel, index) => {
-      menuChannelsDiv.appendChild(
+      fragment.appendChild(
         createMenuItemElement(channel, index, 'index')
       );
     });
+    menuChannelsDiv.appendChild(fragment);
   }
 }
 
@@ -1007,14 +1044,14 @@ function displayChannels(channelsToShow) {
     );
   }
 
-  // Apply search filter
   let visibleChannels = channelsForDisplay;
   if (searchTerm) {
+    const lowerSearch = searchTerm.toLowerCase();
     visibleChannels = channelsForDisplay.filter(
       ch =>
-        ch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ch.name.toLowerCase().includes(lowerSearch) ||
         (ch.groupTitle &&
-          ch.groupTitle.toLowerCase().includes(searchTerm.toLowerCase()))
+          ch.groupTitle.toLowerCase().includes(lowerSearch))
     );
   }
 
@@ -1053,6 +1090,7 @@ function displayChannels(channelsToShow) {
     });
   }
 
+  const fragment = document.createDocumentFragment();
   visibleChannels.forEach(channel => {
     const button = createButton(
       channel.name,
@@ -1061,9 +1099,10 @@ function displayChannels(channelsToShow) {
       channel.groupTitle
     );
     if (button) {
-      channelPickerEl.appendChild(button);
+      fragment.appendChild(button);
     }
   });
+  channelPickerEl.appendChild(fragment);
 }
 
 // =============================================================================
@@ -1126,10 +1165,9 @@ const MULTIVIEW_DEFAULT_CHANNELS = [
 
 function enterMultiView() {
   isMultiViewMode = true;
-  const multiViewContainer = document.getElementById('multiViewContainer');
 
   multiViewButtonEl.classList.add('active');
-  multiViewContainer.style.display = 'flex';
+  multiViewContainerEl.style.display = 'flex';
   enableHeaderAutoHide();
   requestWakeLock();
   videoContainerEl.style.display = 'none';
@@ -1151,22 +1189,18 @@ function enterMultiView() {
 
 function exitMultiView() {
   isMultiViewMode = false;
-  const multiViewContainer = document.getElementById('multiViewContainer');
 
   multiViewButtonEl.classList.remove('active');
-  multiViewContainer.style.display = 'none';
+  multiViewContainerEl.style.display = 'none';
 
   if (fullscreenSlotIndex !== null) {
     exitSlotFullscreen();
   }
 
-  // Clean up all video streams and abort controllers
   multiViewSlots.forEach(slot => {
-    if (slot && slot.video) {
-      slot.video.pause();
-      if (slot.hls) {
-        slot.hls.destroy();
-      }
+    if (slot) {
+      if (slot.hls) slot.hls.destroy();
+      releaseVideoElement(slot.video);
     }
   });
   multiViewSlots = [];
@@ -1183,7 +1217,6 @@ function exitMultiView() {
 
 function changeGridLayout(layout) {
   currentGridLayout = layout;
-  const grid = document.getElementById('multiViewGrid');
 
   if (fullscreenSlotIndex !== null) {
     exitSlotFullscreen();
@@ -1196,13 +1229,12 @@ function changeGridLayout(layout) {
     );
   });
 
-  grid.className = `multi-view-grid grid-${layout}`;
+  multiViewGridEl.className = `multi-view-grid grid-${layout}`;
   createVideoGrid(layout);
 }
 
 function createVideoGrid(layout) {
-  const grid = document.getElementById('multiViewGrid');
-  grid.innerHTML = '';
+  multiViewGridEl.innerHTML = '';
 
   let slots = 4;
   if (layout === '1x1') slots = 1;
@@ -1232,7 +1264,7 @@ function createVideoGrid(layout) {
     span.textContent = 'Click to add channel';
     slot.appendChild(span);
 
-    grid.appendChild(slot);
+    multiViewGridEl.appendChild(slot);
 
     // Restore previous stream if it exists
     if (oldSlots[i] && oldSlots[i].channel) {
@@ -1240,13 +1272,10 @@ function createVideoGrid(layout) {
     }
   }
 
-  // Clean up extra old slots
   for (let i = slots; i < oldSlots.length; i++) {
-    if (oldSlots[i] && oldSlots[i].video) {
-      oldSlots[i].video.pause();
-      if (oldSlots[i].hls) {
-        oldSlots[i].hls.destroy();
-      }
+    if (oldSlots[i]) {
+      if (oldSlots[i].hls) oldSlots[i].hls.destroy();
+      releaseVideoElement(oldSlots[i].video);
     }
   }
 }
@@ -1304,7 +1333,8 @@ function openChannelSelector(slotIndex) {
       const img = document.createElement('img');
       img.src = channel.logo;
       img.alt = channel.name;
-      img.onerror = function () { this.style.display = 'none'; };
+      img.loading = 'lazy';
+      img.onerror = handleImageError;
 
       const span = document.createElement('span');
       span.textContent = channel.name;
@@ -1329,8 +1359,9 @@ function openChannelSelector(slotIndex) {
     }
   }
 
+  const debouncedModalSearch = debounce((val) => renderModalChannels(val), 150);
   searchInput.addEventListener('input', (e) => {
-    renderModalChannels(e.target.value);
+    debouncedModalSearch(e.target.value);
   });
 
   content.appendChild(header);
@@ -1377,11 +1408,10 @@ function loadChannelInSlot(slotIndex, channel) {
 
   if (!slot) return;
 
-  // Clean up existing slot if occupied
   if (multiViewSlots[slotIndex]) {
     const existing = multiViewSlots[slotIndex];
-    if (existing.video) existing.video.pause();
     if (existing.hls) existing.hls.destroy();
+    releaseVideoElement(existing.video);
   }
 
   // Abort previous channel-specific listeners for this slot
@@ -1468,7 +1498,7 @@ function loadChannelInSlot(slotIndex, channel) {
     const iframe = createMakoIframe();
     slot.insertBefore(iframe, controls);
   } else if (Hls.isSupported()) {
-    const hls = new Hls(HLS_CONFIG);
+    const hls = new Hls(HLS_MULTIVIEW_CONFIG);
     hls.loadSource(channel.url);
     hls.attachMedia(video);
     setupHlsErrorRecovery(hls);
@@ -1562,8 +1592,8 @@ function updateSlotAudioButton(slotIndex, muted) {
 function removeChannelFromSlot(slotIndex) {
   const slot = multiViewSlots[slotIndex];
   if (slot) {
-    if (slot.video) slot.video.pause();
     if (slot.hls) slot.hls.destroy();
+    releaseVideoElement(slot.video);
   }
 
   multiViewSlots[slotIndex] = null;
@@ -1608,7 +1638,6 @@ function toggleSlotFullscreen(slotIndex) {
 }
 
 function enterSlotFullscreen(slotIndex) {
-  const grid = document.getElementById('multiViewGrid');
   const slots = document.querySelectorAll('.video-slot');
 
   slots.forEach((slot, idx) => {
@@ -1619,13 +1648,12 @@ function enterSlotFullscreen(slotIndex) {
     }
   });
 
-  grid.classList.add('fullscreen-mode');
+  multiViewGridEl.classList.add('fullscreen-mode');
   fullscreenSlotIndex = slotIndex;
   setActiveAudioSlot(slotIndex);
 }
 
 function exitSlotFullscreen() {
-  const grid = document.getElementById('multiViewGrid');
   const slots = document.querySelectorAll('.video-slot');
 
   slots.forEach(slot => {
@@ -1633,7 +1661,7 @@ function exitSlotFullscreen() {
     slot.classList.remove('fullscreen');
   });
 
-  grid.classList.remove('fullscreen-mode');
+  multiViewGridEl.classList.remove('fullscreen-mode');
   fullscreenSlotIndex = null;
 }
 

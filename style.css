@@ -347,6 +347,7 @@ body::before {
   justify-content: center;
   align-items: center;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  contain: content;
 }
 
 .channel-button::after {
@@ -920,7 +921,7 @@ html {
   justify-content: center;
   cursor: pointer;
   opacity: 0;
-  transition: all 0.3s;
+  transition: opacity 0.3s, background 0.3s, transform 0.3s, color 0.3s;
   color: white;
   font-size: 1.2rem;
 }
@@ -948,7 +949,11 @@ html {
   color: var(--text-primary);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
   display: none;
   gap: 0.5rem;
@@ -1010,7 +1015,7 @@ html {
   color: var(--text-primary);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
 }
 
 .grid-btn:hover {
@@ -1032,7 +1037,7 @@ html {
   color: #ef4444;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
   margin-left: auto;
 }
 
@@ -1078,8 +1083,9 @@ html {
   background: #000;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: outline 0.3s, outline-offset 0.3s;
   user-select: none;
+  contain: content;
 }
 
 .video-slot:hover {
@@ -1145,7 +1151,7 @@ html {
   cursor: pointer;
   color: white;
   font-size: 1rem;
-  transition: all 0.3s;
+  transition: background 0.3s, transform 0.3s;
 }
 
 .slot-control-btn:hover {
@@ -1304,7 +1310,7 @@ html {
   color: var(--text-secondary);
   font-size: 1.5rem;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: color 0.3s, transform 0.3s;
 }
 
 .channel-selector-close:hover {
@@ -1327,7 +1333,7 @@ html {
   border-radius: 12px;
   padding: 1rem;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.3s, border-color 0.3s, transform 0.3s;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1470,7 +1476,8 @@ html {
   color: var(--text-primary);
   font-size: 0.9rem;
   font-family: inherit;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .channel-selector-search::placeholder {
@@ -1494,7 +1501,9 @@ html {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
 }
 
