@@ -125,7 +125,8 @@ body::before {
   pointer-events: none;
 }
 
-#muteButton {
+#muteButton,
+#pipButton {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -144,11 +145,18 @@ body::before {
   overflow: hidden;
 }
 
-#muteButton:hover {
+#muteButton:hover,
+#pipButton:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--accent-color);
   transform: scale(1.1);
   box-shadow: 0 0 20px rgba(129, 140, 248, 0.4);
+}
+
+#pipButton.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
 }
 
 #muteButton.muted {
