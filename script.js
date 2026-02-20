@@ -1733,8 +1733,10 @@ document.addEventListener('keydown', function (e) {
     } else if (!isPickerVisible) {
       showPicker();
     }
+  } else if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    toggleMute();
   } else if (e.key === 'h' || e.key === 'H') {
-    // Only toggle picker/video when a stream is actively playing
     if (currentVideoElement) {
       togglePicker();
     }
@@ -1753,7 +1755,7 @@ document.addEventListener('keydown', function (e) {
   } else if (e.key >= '0' && e.key <= '9') {
     handleNumericInput(e.key);
   }
-});
+}, true);
 
 // =============================================================================
 // Numeric channel input
