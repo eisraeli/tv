@@ -1,0 +1,94 @@
+settings:
+  multiview_defaults:
+    - 11-kanal-il
+    - 12-kanal-il
+    - 13-kanal-il
+    - 14-kanal-il
+
+  mako_iframe_url: "https://www.mako.co.il/AjaxPage?jspName=embedHTML5video.jsp&galleryChannelId=7c5076a9b8757810VgnVCM100000700a10acRCRD&videoChannelId=d1d6f5dfc8517810VgnVCM100000700a10acRCRD&vcmid=1e2258089b67f510VgnVCM2000002a0c10acRCRD"
+
+channels:
+  - name: 11-kanal-il
+    logo: "https://diversityisrael.org.il/wp-content/uploads/kan-200x145.png"
+    category: Israel
+    url: "https://r.il.cdn-redge.media/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
+
+  - name: 12-kanal-il
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Keshet12_2018.svg/1200px-Keshet12_2018.svg.png"
+    category: Israel
+    url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/keshet_12_hevc/live.livx/playlist.m3u8?fmp4&renditions&dvr=28800000"
+
+  - name: 13-kanal-il
+    logo: "https://upload.wikimedia.org/wikipedia/he/9/91/Reshet13.svg"
+    category: Israel
+    playback: split
+    video_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=5500000&videoId=0&renditions&fmp4&dvr=28800000"
+    audio_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=128000&audioId=1&lang=pol&renditions&fmp4&dvr=28800000"
+    url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?fmp4&renditions&dvr=28800000"
+
+  - name: 14-kanal-il
+    logo: "https://www.now14.co.il/wp-content/uploads/2022/06/%D7%9C%D7%95%D7%92%D7%95-%D7%A9%D7%A7%D7%95%D7%A3-02-e1659629999469.png"
+    category: Israel
+    url: "https://n-121-5.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
+
+  - name: i24-il
+    logo: "https://i.imgur.com/hnGgzEf.png"
+    category: Israel
+    url: "https://fetcher-token-902812087252.me-west1.run.app/play/he"
+
+  - name: kan-bet
+    logo: "https://upload.wikimedia.org/wikipedia/he/thumb/e/e8/Kanbet.svg/200px-Kanbet.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_BET.mp3"
+
+  - name: kan-gimel
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/KanGimel.svg/200px-KanGimel.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_GIMMEL.mp3"
+
+  - name: kan-88
+    logo: "https://upload.wikimedia.org/wikipedia/he/thumb/0/09/Kan88Logo.svg/200px-Kan88Logo.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_88.mp3"
+
+  - name: galgalatz
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/GaltzLogo.svg/200px-GaltzLogo.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://glzwizzlv.bynetcdn.com/glglz_mp3"
+
+  - name: galatz
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/GaltzLogo.svg/200px-GaltzLogo.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://glzwizzlv.bynetcdn.com/glz_mp3"
+
+  - name: kan-tarbut
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Kan11Logo.svg/200px-Kan11Logo.svg.png"
+    category: Israel Radio
+    playback: audio
+    url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_TARBUT.mp3"
+
+  - name: knesset
+    logo: "https://upload.wikimedia.org/wikipedia/he/thumb/4/43/Knessetch10.svg/1200px-Knessetch10.svg.png"
+    category: Israel
+    url: "https://kneset.gostreaming.tv/p2-kneset/_definst_/myStream/chunklist.m3u8"
+
+  - name: ReutersTV.us
+    logo: "https://i.imgur.com/6eQ2nCJ.png"
+    category: USA
+    url: "https://amg00453-reuters-amg00453c1-samsung-de-2111.playouts.now.amagi.tv/playlist/amg00453-reuters-reuters-samsungde/playlist.m3u8"
+
+  - name: CNNInternationalEurope.us
+    logo: "https://i.imgur.com/05S3yYZ.png"
+    category: USA
+    url: "https://turnerlive.warnermediacdn.com/hls/live/586495/cnngo/cnn_slate/VIDEO_0_3564000.m3u8"
+
+  - name: Sky News
+    logo: "https://static.cdnlogo.com/logos/s/98/skynews.svg"
+    category: Live News
+    url: "https://linear417-gb-hls1-prd-ak.cdn.skycdp.com/100e/Content/HLS_001_1080_30/Live/channel(skynews)/index_1080-30.m3u8"
+

@@ -23,6 +23,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
 }
 
@@ -51,6 +52,9 @@ body::before {
   background: rgba(10, 10, 20, 0.92);
   border: 1px solid var(--glass-border);
   padding: 0.75rem 1.5rem;
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+  padding-top: max(0.75rem, env(safe-area-inset-top));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -125,8 +129,43 @@ body::before {
   pointer-events: none;
 }
 
+.search-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+#menuToggleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.4rem 0.7rem;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+#menuToggleButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
 #muteButton,
-#pipButton {
+#pipButton,
+#qualityButton,
+#fullscreenButton,
+#numpadButton {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -145,8 +184,17 @@ body::before {
   overflow: hidden;
 }
 
+#numpadButton {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 #muteButton:hover,
-#pipButton:hover {
+#pipButton:hover,
+#qualityButton:hover,
+#fullscreenButton:hover,
+#numpadButton:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--accent-color);
   transform: scale(1.1);
@@ -170,11 +218,58 @@ body::before {
   transform: scale(1.15);
 }
 
+#qualityButton {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.quality-menu {
+  position: fixed;
+  background: var(--bg-primary, #0f0f23);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.4rem 0;
+  min-width: 120px;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+}
+
+.quality-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  color: var(--text-secondary, #a0a0b8);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.quality-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #fff);
+}
+
+.quality-menu-item.active {
+  color: var(--accent-color, #818cf8);
+  font-weight: 600;
+}
+
+.quality-menu-item.active::after {
+  content: '✓';
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+
 /* Main Layout */
 .main-container {
   display: flex;
   margin-top: 75px;
   min-height: calc(100vh - 75px);
+  min-height: calc(100dvh - 75px);
   position: relative;
   z-index: 1;
 }
@@ -185,10 +280,12 @@ body::before {
   top: 75px;
   width: 280px;
   height: calc(100vh - 85px);
+  height: calc(100dvh - 85px);
   background: rgba(10, 10, 20, 0.92);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   overflow-y: auto;
   z-index: 50;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -269,14 +366,32 @@ body::before {
 
 #channelPicker {
   z-index: 3;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1.5rem;
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   position: relative;
   animation: fadeInUp 0.6s ease-out;
+}
+
+.channel-section {
+  margin-bottom: 2rem;
+}
+
+.channel-section-header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.channel-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.5rem;
 }
 
 @keyframes fadeInUp {
@@ -297,6 +412,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   background: #000;
   display: none;
 }
@@ -328,11 +444,10 @@ body::before {
 .channel-button img {
   width: 100%;
   height: 90px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 12px;
   margin-bottom: 0.75rem;
   transition: transform 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 
@@ -402,7 +517,48 @@ body::before {
   }
   
   .search-container {
+    position: static;
+    margin-right: 0.5rem;
+  }
+
+  .search-container .search-input {
     display: none;
+  }
+
+  .search-container .search-icon {
+    position: static;
+    transform: none;
+    cursor: pointer;
+    pointer-events: auto;
+    font-size: 1.2rem;
+  }
+
+  .search-container.expanded {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    background: var(--bg-primary, #0f0f23);
+    z-index: 10;
+    padding: 0 1rem;
+    margin: 0;
+  }
+
+  .search-container.expanded .search-icon {
+    display: none;
+  }
+
+  .search-container.expanded .search-input {
+    display: block;
+    width: 100%;
+    flex: 1;
+  }
+
+  .search-container.expanded .search-close {
+    display: flex;
   }
   
   .header-left {
@@ -436,6 +592,7 @@ body::before {
     transform: translateX(-100%);
     top: 65px;
     height: calc(100vh - 65px);
+    height: calc(100dvh - 65px);
   }
   
   .content-area {
@@ -445,12 +602,16 @@ body::before {
   .main-container {
     margin-top: 65px;
     min-height: calc(100vh - 65px);
+    min-height: calc(100dvh - 65px);
   }
   
   #channelPicker {
+    padding: 1rem;
+  }
+
+  .channel-section-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 1rem;
-    padding: 1rem;
   }
   
   .channel-button {
@@ -486,18 +647,23 @@ body::before {
   .side-menu {
     top: 60px;
     height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
     padding: 1rem;
   }
   
   .main-container {
     margin-top: 60px;
     min-height: calc(100vh - 60px);
+    min-height: calc(100dvh - 60px);
   }
   
   #channelPicker {
+    padding: 0.75rem;
+  }
+
+  .channel-section-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 0.75rem;
-    padding: 0.75rem;
   }
   
   .channel-button {
@@ -577,7 +743,7 @@ body::before {
 }
 
 @media screen and (orientation: portrait) and (min-height: 600px) and (min-width: 600px) {
-  #channelPicker {
+  .channel-section-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
   
@@ -592,7 +758,7 @@ body::before {
 }
 
 @media screen and (orientation: landscape) and (min-width: 900px) {
-  #channelPicker {
+  .channel-section-grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
   
@@ -628,9 +794,12 @@ body::before {
   
   
   #channelPicker {
+    padding: 0.5rem;
+  }
+
+  .channel-section-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 0.5rem;
-    padding: 0.5rem;
   }
   
   .channel-button {
@@ -646,6 +815,23 @@ body::before {
   .channel-menu-item {
     padding: 0.8rem 0.6rem;
     font-size: 0.8rem;
+  }
+}
+
+/* Restore touch-friendly sizes on small touch screens */
+@media screen and (max-width: 375px) and (hover: none) and (pointer: coarse) {
+  .channel-button {
+    min-height: 100px;
+    padding: 0.6rem;
+  }
+
+  .channel-button img {
+    height: 55px;
+  }
+
+  .channel-menu-item {
+    padding: 1rem 0.75rem;
+    min-height: 48px;
   }
 }
 
@@ -711,6 +897,21 @@ body::before {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.video-loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(129, 140, 248, 0.2);
+  border-top: 3px solid var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  z-index: 5;
+  pointer-events: none;
 }
 
 /* Hide scrollbars globally (content still scrollable) */
@@ -1389,6 +1590,11 @@ html {
     padding: 1px;
   }
   
+  .grid-btn[data-grid="3x3"],
+  .grid-btn[data-grid="2x3"] {
+    display: none;
+  }
+
   .multi-view-grid.grid-3x3 {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(2, 1fr);
