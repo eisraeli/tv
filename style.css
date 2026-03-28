@@ -1192,51 +1192,124 @@ html {
   z-index: 100;
 }
 
-.multi-view-controls {
-  background: rgba(10, 10, 20, 0.95);
-  padding: 1rem;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid var(--glass-border);
-  /* Auto-hide: overlay on top of the grid, don't steal space */
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s;
-}
-
-.multi-view-controls.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.grid-btn {
-  background: rgba(255, 255, 255, 0.05);
+#gridSizeButton {
+  background: rgba(30, 30, 50, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 0.5rem 1rem;
   color: var(--text-primary);
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s, border-color 0.3s, color 0.3s;
+  font-size: 0.9rem;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.grid-btn:hover {
+#gridSizeControl {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+#gridSizeButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-color);
+}
+
+#exitMultiView {
+  background: rgba(30, 30, 50, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  color: #ef4444;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+#exitMultiView:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.grid-size-menu {
+  position: fixed;
+  background: var(--bg-primary, #0f0f23);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  min-width: 180px;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+}
+
+.grid-size-menu label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.grid-size-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.grid-size-inputs input {
+  width: 50px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+  text-align: center;
+  font-family: inherit;
+}
+
+.grid-size-inputs input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.grid-size-inputs span {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.grid-size-presets {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.grid-preset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.grid-preset-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--accent-color);
 }
 
-.grid-btn.active {
+.grid-preset-btn.active {
   background: var(--accent-color);
   color: white;
   border-color: var(--accent-color);
 }
+
+
 
 #exitMultiView {
   background: rgba(239, 68, 68, 0.2);
@@ -1266,26 +1339,7 @@ html {
   overflow: hidden;
 }
 
-/* Grid layouts */
-.multi-view-grid.grid-1x1 {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
-}
-
-.multi-view-grid.grid-2x2 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
-.multi-view-grid.grid-3x3 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-}
-
-.multi-view-grid.grid-2x3 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
+/* Grid layout is set dynamically via JS */
 
 .video-slot {
   position: relative;
@@ -1575,34 +1629,10 @@ html {
     font-size: 0.85rem;
   }
   
-  .multi-view-controls {
-    padding: 0.75rem;
-    flex-wrap: wrap;
-  }
-  
-  .grid-btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
-  }
   
   .multi-view-grid {
     gap: 1px;
     padding: 1px;
-  }
-  
-  .grid-btn[data-grid="3x3"],
-  .grid-btn[data-grid="2x3"] {
-    display: none;
-  }
-
-  .multi-view-grid.grid-3x3 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-  }
-  
-  .multi-view-grid.grid-2x3 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
   }
   
   /* Fullscreen adjustments for mobile */
