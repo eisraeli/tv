@@ -190,6 +190,17 @@ function createMakoIframe() {
   return iframe;
 }
 
+function createIpcamliveIframe(alias) {
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://ipcamlive.com/player/player.php?alias=${alias}&autoplay=1&mute=0`;
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+  iframe.allowFullscreen = true;
+  iframe.allow = 'autoplay';
+  return iframe;
+}
+
 function updateMuteButtonState(muted) {
   muteButtonEl.textContent = muted ? '🔇' : '🔊';
   if (muted) {
@@ -971,6 +982,17 @@ function playChannel(channel) {
     playVideoAndAudio(channel.video_url, channel.audio_url).then(onLoaded).catch(onFailed);
   } else if (channel.playback === 'audio') {
     playAudioStream(channel.url, channel.logo).then(onLoaded).catch(onFailed);
+  } else if (channel.playback === 'ipcamlive') {
+    destroyActiveHls();
+    releaseVideoElement(currentVideoElement);
+    releaseVideoElement(currentAudioElement);
+    currentVideoElement = null;
+    currentAudioElement = null;
+    const iframe = createIpcamliveIframe(channel.url);
+    videoContainerEl.innerHTML = '';
+    videoContainerEl.appendChild(iframe);
+    showVideoView();
+    hideVideoLoading();
   } else {
     playStream(channel.url).then(onLoaded).catch(onFailed);
   }
@@ -1855,6 +1877,11 @@ function loadChannelInSlot(slotIndex, channel) {
   if (channel.playback === 'mako') {
     video.remove();
     const iframe = createMakoIframe();
+    slot.insertBefore(iframe, controls);
+  } else if (channel.playback === 'ipcamlive') {
+    video.remove();
+    const iframe = createIpcamliveIframe(channel.url);
+    iframe.style.pointerEvents = 'none';
     slot.insertBefore(iframe, controls);
   } else if (Hls.isSupported()) {
     const hls = new Hls(HLS_MULTIVIEW_CONFIG);
