@@ -79,11 +79,6 @@ channels:
     playback: audio
     url: "https://cdn.cybercdn.live/Radios_100FM/Audio/icecast.audio"
 
-  - name: yafo-beach-cam
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Jaffa_from_the_sea.jpg/320px-Jaffa_from_the_sea.jpg"
-    category: Webcams
-    url: "https://s75.ipcamlive.com/streams/4bpcdjg4ydaug2xsw/stream.m3u8"
-
   - name: hilton-beach-cam-a
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg/320px-PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg"
     category: Webcams
@@ -93,21 +88,6 @@ channels:
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg/320px-PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg"
     category: Webcams
     url: "https://vod.wavehub.co.il/live/_definst_/HiltonB_HD.stream/playlist.m3u8"
-
-  - name: bat-galim-beach-cam
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Bat_Galim_Haifa.jpg/320px-Bat_Galim_Haifa.jpg"
-    category: Webcams
-    url: "https://s124.ipcamlive.com/streams/7cogix6nm4hcfsrfv/stream.m3u8"
-
-  - name: zvulun-beach-cam
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Herzliya_Marina.jpg/320px-Herzliya_Marina.jpg"
-    category: Webcams
-    url: "https://s122.ipcamlive.com/streams/7a7m6hvi4ftzjtgnq/stream.m3u8"
-
-  - name: tel-aviv-marina-cam
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Tel_Aviv_Marina.jpg/320px-Tel_Aviv_Marina.jpg"
-    category: Webcams
-    url: "https://s27.ipcamlive.com/streams/1bydf3wtks4nj9l5k/stream.m3u8"
 
   - name: kfar-haoranim-cam
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Kfar_HaOranim.JPG/320px-Kfar_HaOranim.JPG"
