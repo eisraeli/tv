@@ -17,7 +17,6 @@ const globalSearchEl = document.getElementById('globalSearch');
 const menuSearchEl = document.getElementById('menuSearch');
 const multiViewContainerEl = document.getElementById('multiViewContainer');
 const multiViewGridEl = document.getElementById('multiViewGrid');
-const mvControlsEl = document.querySelector('.multi-view-controls');
 const pipButtonEl = document.getElementById('pipButton');
 const qualityButtonEl = document.getElementById('qualityButton');
 const menuToggleButtonEl = document.getElementById('menuToggleButton');
@@ -41,7 +40,7 @@ let activeHlsInstances = [];
 let isMultiViewMode = false;
 let multiViewSlots = [];
 let activeAudioSlot = null;
-let currentGridLayout = '2x2';
+let currentGridLayout = '4x4';
 let fullscreenSlotIndex = null;
 
 // AbortControllers for slot-specific listeners
@@ -491,8 +490,6 @@ function enableHeaderAutoHide() {
 function disableHeaderAutoHide() {
   isAutoHideActive = false;
   headerEl.classList.remove('auto-hide', 'visible');
-  // Also hide multi-view controls bar
-  if (mvControlsEl) mvControlsEl.classList.remove('visible');
   if (overlayHideTimer) {
     clearTimeout(overlayHideTimer);
     overlayHideTimer = null;
@@ -502,16 +499,9 @@ function disableHeaderAutoHide() {
 function showOverlaysTemporarily() {
   if (!isAutoHideActive) return;
   headerEl.classList.add('visible');
-  // Also show multi-view controls if in multi-view mode
-  if (isMultiViewMode && mvControlsEl) {
-    mvControlsEl.classList.add('visible');
-  }
   if (overlayHideTimer) clearTimeout(overlayHideTimer);
   overlayHideTimer = setTimeout(() => {
     headerEl.classList.remove('visible');
-    if (isMultiViewMode && mvControlsEl) {
-      mvControlsEl.classList.remove('visible');
-    }
   }, 3000);
 }
 
@@ -1250,6 +1240,7 @@ function start() {
       window.allChannels = channels;
       displayChannels(channels);
 
+      multiViewButtonEl.style.display = 'flex';
       updateMuteButtonState(false);
     })
     .catch(error => {
@@ -1329,8 +1320,9 @@ function displayChannels(channelsToShow) {
   noResultsEl.style.display = 'none';
   channelPickerEl.style.display = 'block';
 
-  const tvChannels = visibleChannels.filter(ch => ch.playback !== 'audio');
+  const tvChannels = visibleChannels.filter(ch => ch.playback !== 'audio' && ch.groupTitle !== 'Webcams');
   const radioChannels = visibleChannels.filter(ch => ch.playback === 'audio');
+  const webcamChannels = visibleChannels.filter(ch => ch.groupTitle === 'Webcams');
 
   function createSection(title, channels) {
     const section = document.createElement('div');
@@ -1356,6 +1348,9 @@ function displayChannels(channelsToShow) {
   }
   if (radioChannels.length > 0) {
     channelPickerEl.appendChild(createSection('Radio', radioChannels));
+  }
+  if (webcamChannels.length > 0) {
+    channelPickerEl.appendChild(createSection('Web Cameras', webcamChannels));
   }
 }
 
@@ -1408,13 +1403,6 @@ function initMultiView() {
   document
     .getElementById('exitMultiView')
     .addEventListener('click', exitMultiView);
-
-  document.querySelectorAll('.grid-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const layout = e.target.getAttribute('data-grid');
-      changeGridLayout(layout);
-    });
-  });
 }
 
 function toggleMultiView() {
@@ -1429,6 +1417,8 @@ function enterMultiView() {
   isMultiViewMode = true;
 
   multiViewButtonEl.classList.add('active');
+  multiViewButtonEl.style.display = 'none';
+  gridSizeControl.style.display = 'block';
   multiViewContainerEl.style.display = 'flex';
   enableHeaderAutoHide();
   requestWakeLock();
@@ -1436,18 +1426,37 @@ function enterMultiView() {
   channelPickerEl.style.display = 'none';
   backButtonEl.style.display = 'none';
 
+  const { cols: initCols, rows: initRows } = parseGridLayout(currentGridLayout);
+  multiViewGridEl.style.gridTemplateColumns = `repeat(${initCols}, 1fr)`;
+  multiViewGridEl.style.gridTemplateRows = `repeat(${initRows}, 1fr)`;
+  multiViewGridEl.className = 'multi-view-grid';
+  gridSizeButton.textContent = `⊞ ${currentGridLayout}`;
   createVideoGrid(currentGridLayout);
 
-  // Auto-load default channels into empty slots
+  // Auto-load default TV channels + all webcams into slots
   if (window.allChannels && multiViewSlots.every(s => !s)) {
+    const totalSlots = document.querySelectorAll('.video-slot').length;
+    let slotIndex = 0;
     let unmuteSlot = 0;
-    channelSettings.multiview_defaults.forEach((name, i) => {
+
+    channelSettings.multiview_defaults.forEach(name => {
+      if (slotIndex >= totalSlots) return;
       const channel = window.allChannels.find(ch => ch.name === name);
-      if (channel && i < document.querySelectorAll('.video-slot').length) {
-        loadChannelInSlot(i, channel);
-        if (name === '12-kanal-il') unmuteSlot = i;
+      if (channel) {
+        loadChannelInSlot(slotIndex, channel);
+        if (name === '12-kanal-il') unmuteSlot = slotIndex;
+        slotIndex++;
       }
     });
+
+    window.allChannels
+      .filter(ch => ch.groupTitle === 'Webcams')
+      .forEach(channel => {
+        if (slotIndex >= totalSlots) return;
+        loadChannelInSlot(slotIndex, channel);
+        slotIndex++;
+      });
+
     setTimeout(() => setActiveAudioSlot(unmuteSlot), 500);
   }
 }
@@ -1456,6 +1465,9 @@ function exitMultiView() {
   isMultiViewMode = false;
 
   multiViewButtonEl.classList.remove('active');
+  multiViewButtonEl.style.display = 'flex';
+  gridSizeControl.style.display = 'none';
+  closeGridMenu();
   multiViewContainerEl.style.display = 'none';
 
   if (fullscreenSlotIndex !== null) {
@@ -1480,6 +1492,15 @@ function exitMultiView() {
   showPicker();
 }
 
+const gridSizeControl = document.getElementById('gridSizeControl');
+const gridSizeButton = document.getElementById('gridSizeButton');
+let gridMenuOpen = false;
+
+function parseGridLayout(layout) {
+  const parts = layout.split('x').map(Number);
+  return { cols: parts[0] || 2, rows: parts[1] || 2 };
+}
+
 function changeGridLayout(layout) {
   currentGridLayout = layout;
 
@@ -1487,24 +1508,95 @@ function changeGridLayout(layout) {
     exitSlotFullscreen();
   }
 
-  document.querySelectorAll('.grid-btn').forEach(btn => {
-    btn.classList.toggle(
-      'active',
-      btn.getAttribute('data-grid') === layout
-    );
-  });
-
-  multiViewGridEl.className = `multi-view-grid grid-${layout}`;
+  const { cols, rows } = parseGridLayout(layout);
+  multiViewGridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  multiViewGridEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  multiViewGridEl.className = 'multi-view-grid';
+  gridSizeButton.textContent = `⊞ ${layout}`;
+  closeGridMenu();
   createVideoGrid(layout);
 }
+
+function closeGridMenu() {
+  const existing = document.querySelector('.grid-size-menu');
+  if (existing) existing.remove();
+  gridMenuOpen = false;
+}
+
+function showGridMenu() {
+  if (gridMenuOpen) { closeGridMenu(); return; }
+
+  const menu = document.createElement('div');
+  menu.className = 'grid-size-menu';
+
+  const label = document.createElement('label');
+  label.textContent = 'Grid size (columns x rows)';
+  menu.appendChild(label);
+
+  const inputRow = document.createElement('div');
+  inputRow.className = 'grid-size-inputs';
+
+  const { cols, rows } = parseGridLayout(currentGridLayout);
+
+  const colInput = document.createElement('input');
+  colInput.type = 'number'; colInput.min = '1'; colInput.max = '6'; colInput.value = cols;
+
+  const xSpan = document.createElement('span');
+  xSpan.textContent = '×';
+
+  const rowInput = document.createElement('input');
+  rowInput.type = 'number'; rowInput.min = '1'; rowInput.max = '6'; rowInput.value = rows;
+
+  function applyCustom() {
+    const c = Math.max(1, Math.min(6, parseInt(colInput.value) || 2));
+    const r = Math.max(1, Math.min(6, parseInt(rowInput.value) || 2));
+    changeGridLayout(`${c}x${r}`);
+  }
+
+  colInput.addEventListener('change', applyCustom);
+  rowInput.addEventListener('change', applyCustom);
+  colInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCustom(); });
+  rowInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCustom(); });
+
+  inputRow.appendChild(colInput);
+  inputRow.appendChild(xSpan);
+  inputRow.appendChild(rowInput);
+  menu.appendChild(inputRow);
+
+  const presets = document.createElement('div');
+  presets.className = 'grid-size-presets';
+  ['1x1', '2x2', '3x3', '2x3', '3x2', '4x4'].forEach(preset => {
+    const btn = document.createElement('button');
+    btn.className = `grid-preset-btn${currentGridLayout === preset ? ' active' : ''}`;
+    btn.textContent = preset;
+    btn.addEventListener('click', () => changeGridLayout(preset));
+    presets.appendChild(btn);
+  });
+  menu.appendChild(presets);
+
+  const rect = gridSizeButton.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${rect.left}px`;
+  document.body.appendChild(menu);
+  gridMenuOpen = true;
+  colInput.focus();
+  colInput.select();
+}
+
+gridSizeButton.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showGridMenu();
+});
+
+document.addEventListener('click', (e) => {
+  if (gridMenuOpen && !e.target.closest('.grid-size-menu')) closeGridMenu();
+});
 
 function createVideoGrid(layout) {
   multiViewGridEl.innerHTML = '';
 
-  let slots = 4;
-  if (layout === '1x1') slots = 1;
-  else if (layout === '3x3') slots = 9;
-  else if (layout === '2x3') slots = 6;
+  const { cols, rows } = parseGridLayout(layout);
+  const slots = cols * rows;
 
   const oldSlots = [...multiViewSlots];
   multiViewSlots = [];

@@ -4,6 +4,7 @@ settings:
     - 12-kanal-il
     - 13-kanal-il
     - 14-kanal-il
+    - i24-il
 
   mako_iframe_url: "https://www.mako.co.il/AjaxPage?jspName=embedHTML5video.jsp&galleryChannelId=7c5076a9b8757810VgnVCM100000700a10acRCRD&videoChannelId=d1d6f5dfc8517810VgnVCM100000700a10acRCRD&vcmid=1e2258089b67f510VgnVCM2000002a0c10acRCRD"
 
@@ -71,6 +72,62 @@ channels:
     category: Israel Radio
     playback: audio
     url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_TARBUT.mp3"
+
+  - name: 100fm
+    logo: "https://play-lh.googleusercontent.com/0x5__zVzrsagQqX4kMTqfOJoXtKbKbmlLlWp-eFLhXCo_6K0TJUk7BVKRTMLEI4ZimI=w240-h480-rw"
+    category: Israel Radio
+    playback: audio
+    url: "https://cdn.cybercdn.live/Radios_100FM/Audio/icecast.audio"
+
+  - name: yafo-beach-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Jaffa_from_the_sea.jpg/320px-Jaffa_from_the_sea.jpg"
+    category: Webcams
+    url: "https://s75.ipcamlive.com/streams/4bpcdjg4ydaug2xsw/stream.m3u8"
+
+  - name: hilton-beach-cam-a
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg/320px-PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg"
+    category: Webcams
+    url: "https://vod.wavehub.co.il/live/_definst_/HiltonA_Lefts_HD.stream/playlist.m3u8"
+
+  - name: hilton-beach-cam-b
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg/320px-PikiWiki_Israel_66498_hilton_beach_tel_aviv.jpg"
+    category: Webcams
+    url: "https://vod.wavehub.co.il/live/_definst_/HiltonB_HD.stream/playlist.m3u8"
+
+  - name: bat-galim-beach-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Bat_Galim_Haifa.jpg/320px-Bat_Galim_Haifa.jpg"
+    category: Webcams
+    url: "https://s124.ipcamlive.com/streams/7cogix6nm4hcfsrfv/stream.m3u8"
+
+  - name: zvulun-beach-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Herzliya_Marina.jpg/320px-Herzliya_Marina.jpg"
+    category: Webcams
+    url: "https://s122.ipcamlive.com/streams/7a7m6hvi4ftzjtgnq/stream.m3u8"
+
+  - name: tel-aviv-marina-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Tel_Aviv_Marina.jpg/320px-Tel_Aviv_Marina.jpg"
+    category: Webcams
+    url: "https://s27.ipcamlive.com/streams/1bydf3wtks4nj9l5k/stream.m3u8"
+
+  - name: kfar-haoranim-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Kfar_HaOranim.JPG/320px-Kfar_HaOranim.JPG"
+    category: Webcams
+    url: "https://video.weather2day.co.il:4438/live/kfaroranim/playlist.m3u8"
+
+  - name: hanaton-weather-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Hanaton01.jpg/320px-Hanaton01.jpg"
+    category: Webcams
+    url: "https://video.weather2day.co.il:4438/live/hanaton/playlist.m3u8"
+
+  - name: zefat-weather-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/PikiWiki_Israel_68639_safed.jpg/320px-PikiWiki_Israel_68639_safed.jpg"
+    category: Webcams
+    url: "https://video.weather2day.co.il:4438/live/zefati/playlist.m3u8"
+
+  - name: tel-aviv-weather-cam
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Tel_Aviv-Yafo_Skyline_%28cropped%29.jpg/320px-Tel_Aviv-Yafo_Skyline_%28cropped%29.jpg"
+    category: Webcams
+    url: "https://video.weather2day.co.il:4438/live/telaviv/playlist.m3u8"
 
   - name: knesset
     logo: "https://upload.wikimedia.org/wikipedia/he/thumb/4/43/Knessetch10.svg/1200px-Knessetch10.svg.png"

@@ -20,6 +20,10 @@
       <button id="menuToggleButton" title="Channel List" style="display: none;">☰</button>
       <button id="backButton">← Back to Channels</button>
       <button id="multiViewButton" title="Multi-View Mode">▦ Multi-View</button>
+      <div id="gridSizeControl" style="display: none; position: relative;">
+        <button id="gridSizeButton" title="Grid Size">⊞ 2x2</button>
+        <button id="exitMultiView" title="Exit Multi-View">✕</button>
+      </div>
     </div>
     <div class="header-controls">
       <div class="search-container" id="searchContainer">
@@ -70,13 +74,6 @@
   
   <!-- Multi-View Container -->
   <div id="multiViewContainer" class="multi-view-container" style="display: none;">
-    <div class="multi-view-controls">
-      <button class="grid-btn" data-grid="1x1">1x1</button>
-      <button class="grid-btn active" data-grid="2x2">2x2</button>
-      <button class="grid-btn" data-grid="3x3">3x3</button>
-      <button class="grid-btn" data-grid="2x3">2x3</button>
-      <button id="exitMultiView">✕ Exit Multi-View</button>
-    </div>
     <div id="multiViewGrid" class="multi-view-grid grid-2x2">
       <!-- Video slots will be dynamically created -->
     </div>
