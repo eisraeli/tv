@@ -225,6 +225,30 @@ body::before {
   letter-spacing: 0.5px;
 }
 
+#sourceButton {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  max-width: 140px;
+  padding: 0 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sourceButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
 .quality-menu {
   position: fixed;
   background: var(--bg-primary, #0f0f23);
