@@ -475,6 +475,9 @@ body::before {
   transition: transform 0.2s;
 }
 
+.channel-button.webcam img {
+  object-fit: cover;
+}
 
 .channel-button {
   background: rgba(255, 255, 255, 0.03);

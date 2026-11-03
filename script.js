@@ -1246,6 +1246,7 @@ function createButton(channel) {
   const { name, logo, url, groupTitle } = channel;
   const button = document.createElement('button');
   button.className = 'channel-button';
+  if (groupTitle === 'Webcams') button.classList.add('webcam');
   button.setAttribute('data-channel-name', name);
 
   const img = document.createElement('img');
