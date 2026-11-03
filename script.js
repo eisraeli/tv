@@ -19,8 +19,11 @@ const multiViewContainerEl = document.getElementById('multiViewContainer');
 const multiViewGridEl = document.getElementById('multiViewGrid');
 const pipButtonEl = document.getElementById('pipButton');
 const qualityButtonEl = document.getElementById('qualityButton');
+const sourceButtonEl = document.getElementById('sourceButton');
 const menuToggleButtonEl = document.getElementById('menuToggleButton');
 const fullscreenButtonEl = document.getElementById('fullscreenButton');
+const browseButtonEl = document.getElementById('browseButton');
+const countryListEl = document.getElementById('countryList');
 
 // =============================================================================
 // Application state
@@ -52,6 +55,17 @@ let channelInputTimer = null;
 
 // Current channel index for swipe navigation
 let currentChannelIndex = -1;
+
+// Browse (iptv-org) state. home | countries | country | playing
+let browseMode = 'home';
+let browseQuery = '';
+let browseCountries = null;
+let browseCountry = null;
+let browseChannels = [];
+const browsePlaylistCache = new Map();
+let browsePlaylistFlight = null;
+
+const BROWSE_COUNTRIES_URL = 'https://iptv-org.github.io/api/countries.json';
 
 // =============================================================================
 // Utilities
@@ -273,8 +287,9 @@ function updateQualityButtonLabel() {
 }
 
 function closeQualityMenu() {
-  const existing = document.querySelector('.quality-menu');
-  if (existing) existing.remove();
+  document.querySelectorAll('.quality-menu').forEach(menu => {
+    if (menu.dataset.menu !== 'source') menu.remove();
+  });
   qualityMenuOpen = false;
 }
 
@@ -329,15 +344,145 @@ function resetQualityState() {
   currentQualityLevel = -1;
   qualityButtonEl.textContent = 'HD';
   updateQualityButtonVisibility(false);
+  updateSourceButtonVisibility(false);
 }
 
 qualityButtonEl.addEventListener('click', (e) => {
   e.stopPropagation();
+  closeSourceMenu();
   showQualityMenu();
 });
 
 document.addEventListener('click', () => {
   if (qualityMenuOpen) closeQualityMenu();
+  if (sourceMenuOpen) closeSourceMenu();
+});
+
+// Source selector
+// =============================================================================
+let sourceMenuOpen = false;
+let currentSourceChannel = null;
+
+function sourceStorageKey(name) {
+  return `channelSource:${name}`;
+}
+
+function normalizeSources(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(source => {
+    if (!source || !source.name) return null;
+    if (source.playback === 'split' && source.video_url && source.audio_url) {
+      return {
+        name: String(source.name),
+        playback: 'split',
+        video_url: source.video_url,
+        audio_url: source.audio_url,
+      };
+    }
+    if (source.url) {
+      return { name: String(source.name), url: source.url };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+function resolveSource(channel) {
+  const sources = channel.sources;
+  if (!sources || sources.length === 0) return null;
+  const saved = safeGetItem(sourceStorageKey(channel.name));
+  const source = sources.find(item => item.name === saved) || sources[0];
+  channel.activeSourceName = source.name;
+  if (source.playback === 'split') {
+    channel.playback = 'split';
+    channel.video_url = source.video_url;
+    channel.audio_url = source.audio_url;
+  } else {
+    channel.url = source.url;
+    channel.playback = null;
+  }
+  return source;
+}
+
+function updateSourceButtonVisibility(visible) {
+  sourceButtonEl.style.display = visible ? 'flex' : 'none';
+  if (!visible) closeSourceMenu();
+}
+
+function revealSourceButton(channel) {
+  const multi = channel.sources && channel.sources.length > 1;
+  if (!multi) {
+    updateSourceButtonVisibility(false);
+    currentSourceChannel = null;
+    return;
+  }
+  currentSourceChannel = channel;
+  sourceButtonEl.textContent = channel.activeSourceName || channel.sources[0].name;
+  updateSourceButtonVisibility(true);
+}
+
+function closeSourceMenu() {
+  const existing = document.querySelector('.quality-menu[data-menu="source"]');
+  if (existing) existing.remove();
+  sourceMenuOpen = false;
+}
+
+function showSourceMenu() {
+  if (sourceMenuOpen) {
+    closeSourceMenu();
+    return;
+  }
+  const channel = currentSourceChannel;
+  if (!channel || !channel.sources || channel.sources.length < 2) return;
+
+  closeQualityMenu();
+  const menu = document.createElement('div');
+  menu.className = 'quality-menu';
+  menu.dataset.menu = 'source';
+
+  channel.sources.forEach(source => {
+    const item = document.createElement('div');
+    item.className = `quality-menu-item${source.name === channel.activeSourceName ? ' active' : ''}`;
+    item.textContent = source.name;
+    item.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeSourceMenu();
+      selectSource(channel, source.name);
+    });
+    menu.appendChild(item);
+  });
+
+  const rect = sourceButtonEl.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.right = `${window.innerWidth - rect.right}px`;
+  document.body.appendChild(menu);
+  sourceMenuOpen = true;
+}
+
+function selectSource(channel, sourceName) {
+  safeSetItem(sourceStorageKey(channel.name), sourceName);
+  resolveSource(channel);
+  showVideoLoading();
+
+  function onLoaded() { hideVideoLoading(); }
+  function onFailed(err) {
+    hideVideoLoading();
+    console.error('Playback failed:', err);
+    showToast('Channel unavailable, please try another', 'error');
+    updateSourceButtonVisibility(false);
+    showPicker();
+  }
+
+  if (channel.playback === 'split') {
+    playVideoAndAudio(channel.video_url, channel.audio_url).then(onLoaded).catch(onFailed);
+  } else {
+    playStream(channel.url).then(onLoaded).catch(onFailed);
+  }
+  revealSourceButton(channel);
+}
+
+sourceButtonEl.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showSourceMenu();
 });
 
 function setupPipListeners(videoElement) {
@@ -398,7 +543,11 @@ function showVideoView() {
   requestWakeLock();
   updatePipButtonVisibility(true);
   updateFullscreenButtonVisibility(true);
-  updateNumpadButtonVisibility(true);
+  updateNumpadButtonVisibility(browseMode !== 'playing');
+  if (browseMode === 'playing') {
+    browseButtonEl.style.display = 'none';
+    backButtonEl.textContent = '← Back';
+  }
 }
 
 // =============================================================================
@@ -948,10 +1097,40 @@ function playAudioStream(url, logoUrl) {
 // Unified channel playback
 // =============================================================================
 function playChannel(channel) {
+  if (channel.source === 'browse') {
+    currentChannelIndex = -1;
+    browseMode = 'playing';
+    if (isMenuVisible) toggleSideMenu();
+    showVideoLoading();
+    playStream(channel.url).then(() => {
+      hideVideoLoading();
+    }).catch(err => {
+      hideVideoLoading();
+      console.error('Playback failed:', err);
+      showToast('Channel unavailable, please try another', 'error');
+      updateSourceButtonVisibility(false);
+      teardownPlayback();
+      browseMode = 'country';
+      showCountrySurface();
+    });
+    return;
+  }
+
+  if (browseMode !== 'home') {
+    browseMode = 'home';
+    browseCountry = null;
+    browseQuery = '';
+    countryListEl.style.display = 'none';
+  }
+
   if (window.allChannels) {
+    const canonical = window.allChannels.find(ch => ch.name === channel.name);
+    if (canonical) channel = canonical;
     const idx = window.allChannels.findIndex(ch => ch.name === channel.name);
     if (idx >= 0) currentChannelIndex = idx;
   }
+
+  resolveSource(channel);
 
   if (isMenuVisible) {
     toggleSideMenu();
@@ -964,6 +1143,7 @@ function playChannel(channel) {
     hideVideoLoading();
     console.error('Playback failed:', err);
     showToast('Channel unavailable, please try another', 'error');
+    updateSourceButtonVisibility(false);
     showPicker();
   }
 
@@ -980,6 +1160,7 @@ function playChannel(channel) {
     hideVideoLoading();
   } else if (channel.playback === 'split') {
     playVideoAndAudio(channel.video_url, channel.audio_url).then(onLoaded).catch(onFailed);
+    revealSourceButton(channel);
   } else if (channel.playback === 'audio') {
     playAudioStream(channel.url, channel.logo).then(onLoaded).catch(onFailed);
   } else if (channel.playback === 'ipcamlive') {
@@ -995,6 +1176,7 @@ function playChannel(channel) {
     hideVideoLoading();
   } else {
     playStream(channel.url).then(onLoaded).catch(onFailed);
+    revealSourceButton(channel);
   }
 }
 
@@ -1104,9 +1286,10 @@ function playChannelFromMenu(channel, index) {
 // Channel button creation
 // =============================================================================
 function createButton(channel) {
-  const { name, logo, url, groupTitle } = channel;
+  const { name, logo, url, groupTitle, playback } = channel;
   const button = document.createElement('button');
   button.className = 'channel-button';
+  if (groupTitle === 'Webcams') button.classList.add('webcam');
   button.setAttribute('data-channel-name', name);
 
   const img = document.createElement('img');
@@ -1117,7 +1300,9 @@ function createButton(channel) {
     this.style.display = 'none';
     const fallback = document.createElement('div');
     fallback.className = 'channel-button-fallback';
-    fallback.textContent = '📺';
+    if (playback === 'audio') fallback.textContent = '📻';
+    else if (groupTitle === 'Webcams') fallback.textContent = '📷';
+    else fallback.textContent = '📺';
     button.insertBefore(fallback, button.firstChild);
   };
   button.appendChild(img);
@@ -1165,6 +1350,9 @@ function showPicker() {
   backButtonEl.style.display = 'none';
   menuToggleButtonEl.style.display = 'none';
   multiViewButtonEl.style.display = 'flex';
+  browseButtonEl.style.display = 'flex';
+  backButtonEl.textContent = '← Back to Channels';
+  globalSearchEl.placeholder = 'Search channels...';
   updateNumpadButtonVisibility(false);
   disableHeaderAutoHide();
 
@@ -1191,28 +1379,343 @@ function togglePicker() {
 }
 
 // =============================================================================
+// Browse countries (iptv-org)
+// =============================================================================
+function teardownPlayback() {
+  destroyActiveHls();
+  releaseVideoElement(currentVideoElement);
+  releaseVideoElement(currentAudioElement);
+  currentVideoElement = null;
+  currentAudioElement = null;
+  videoContainerEl.innerHTML = '';
+  updateMuteButtonVisibility(false);
+  updatePipButtonVisibility(false);
+  updateQualityButtonVisibility(false);
+  updateFullscreenButtonVisibility(false);
+  updateSourceButtonVisibility(false);
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  if (document.pictureInPictureElement) {
+    document.exitPictureInPicture().catch(() => {});
+  }
+  releaseWakeLock();
+  disableHeaderAutoHide();
+}
+
+function hideBrowseMenu() {
+  sideMenu.classList.add('hidden');
+  contentArea.classList.add('expanded');
+  isMenuVisible = false;
+  menuToggleButtonEl.style.display = 'none';
+}
+
+function showBrowseListChrome() {
+  videoContainerEl.style.display = 'none';
+  hideBrowseMenu();
+  backButtonEl.style.display = 'block';
+  backButtonEl.textContent = '← Back';
+  browseButtonEl.style.display = 'flex';
+  multiViewButtonEl.style.display = 'none';
+  updateNumpadButtonVisibility(false);
+  isPickerVisible = true;
+  noResultsEl.style.display = 'none';
+}
+
+function parseBrowseM3u(text, code) {
+  const channels = [];
+  let pendingName = null;
+  let pendingLogo = '';
+  text.split(/\r?\n/).forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    if (trimmed.startsWith('#EXTINF')) {
+      const comma = trimmed.indexOf(',');
+      pendingName = comma >= 0 ? trimmed.slice(comma + 1).trim() : 'Channel';
+      const logoMatch = trimmed.match(/tvg-logo=["']([^"']+)["']/i);
+      const logo = logoMatch ? logoMatch[1] : '';
+      pendingLogo = /^https?:\/\//i.test(logo) ? logo : '';
+      return;
+    }
+    if (trimmed.startsWith('#')) return;
+    if (pendingName && /^https?:\/\//i.test(trimmed)) {
+      channels.push({
+        id: `browse:${code}:${channels.length}`,
+        name: pendingName || 'Channel',
+        logo: pendingLogo,
+        url: trimmed,
+        source: 'browse',
+      });
+    }
+    pendingName = null;
+    pendingLogo = '';
+  });
+  return channels;
+}
+
+function createBrowseCard(channel) {
+  const button = document.createElement('button');
+  button.className = 'channel-button';
+
+  if (channel.logo) {
+    const img = document.createElement('img');
+    img.src = channel.logo;
+    img.alt = channel.name;
+    img.loading = 'lazy';
+    img.onerror = function () {
+      this.style.display = 'none';
+      const fallback = document.createElement('div');
+      fallback.className = 'channel-button-fallback';
+      fallback.textContent = '📺';
+      button.insertBefore(fallback, button.firstChild);
+    };
+    button.appendChild(img);
+  } else {
+    const fallback = document.createElement('div');
+    fallback.className = 'channel-button-fallback';
+    fallback.textContent = '📺';
+    button.appendChild(fallback);
+  }
+
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'channel-button-name';
+  nameDiv.textContent = channel.name;
+  button.appendChild(nameDiv);
+
+  button.addEventListener('click', () => playChannel(channel));
+  return button;
+}
+
+function renderBrowseChannels() {
+  channelPickerEl.innerHTML = '';
+  channelPickerEl.style.display = 'block';
+  countryListEl.style.display = 'none';
+  const query = browseQuery.toLowerCase();
+  const visible = query
+    ? browseChannels.filter(ch => ch.name.toLowerCase().includes(query))
+    : browseChannels;
+
+  const section = document.createElement('div');
+  section.className = 'channel-section';
+  const header = document.createElement('div');
+  header.className = 'channel-section-header';
+  header.textContent = browseCountry ? browseCountry.name : '';
+  section.appendChild(header);
+
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'country-empty';
+    empty.textContent = browseChannels.length === 0
+      ? 'No channels for this country.'
+      : 'No channels found';
+    section.appendChild(empty);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'channel-section-grid';
+    const fragment = document.createDocumentFragment();
+    visible.forEach(channel => fragment.appendChild(createBrowseCard(channel)));
+    grid.appendChild(fragment);
+    section.appendChild(grid);
+  }
+  channelPickerEl.appendChild(section);
+}
+
+function showCountrySurface() {
+  browseMode = 'country';
+  globalSearchEl.placeholder = 'Search channels...';
+  globalSearchEl.value = browseQuery;
+  showBrowseListChrome();
+  renderBrowseChannels();
+}
+
+function renderCountryList() {
+  countryListEl.innerHTML = '';
+  countryListEl.style.display = 'block';
+  channelPickerEl.style.display = 'none';
+
+  if (!browseCountries) {
+    const loading = document.createElement('div');
+    loading.className = 'loading';
+    loading.textContent = 'Loading countries...';
+    countryListEl.appendChild(loading);
+    return;
+  }
+
+  const query = browseQuery.toLowerCase();
+  const visible = query
+    ? browseCountries.filter(country =>
+        country.name.toLowerCase().includes(query) ||
+        country.code.toLowerCase().includes(query))
+    : browseCountries;
+
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'country-empty';
+    empty.textContent = 'No countries found';
+    countryListEl.appendChild(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  visible.forEach(country => {
+    const row = document.createElement('button');
+    row.className = 'country-row';
+    row.type = 'button';
+
+    const flag = document.createElement('span');
+    flag.textContent = country.flag || '';
+    const name = document.createElement('span');
+    name.textContent = country.name;
+    const code = document.createElement('span');
+    code.className = 'country-row-code';
+    code.textContent = country.code;
+
+    row.appendChild(flag);
+    row.appendChild(name);
+    row.appendChild(code);
+    row.addEventListener('click', () => openBrowseCountry(country));
+    fragment.appendChild(row);
+  });
+  countryListEl.appendChild(fragment);
+}
+
+function showCountriesError() {
+  countryListEl.innerHTML = '';
+  countryListEl.style.display = 'block';
+  channelPickerEl.style.display = 'none';
+  const wrap = document.createElement('div');
+  wrap.className = 'country-empty';
+  const msg = document.createElement('div');
+  msg.textContent = 'Failed to load countries.';
+  const retry = document.createElement('button');
+  retry.className = 'retry-btn';
+  retry.textContent = 'Retry';
+  retry.addEventListener('click', () => loadBrowseCountries());
+  wrap.appendChild(msg);
+  wrap.appendChild(retry);
+  countryListEl.appendChild(wrap);
+}
+
+async function loadBrowseCountries() {
+  browseMode = 'countries';
+  browseQuery = '';
+  globalSearchEl.value = '';
+  globalSearchEl.placeholder = 'Search countries...';
+  showBrowseListChrome();
+  renderCountryList();
+  if (browseCountries) return;
+  try {
+    const response = await fetch(BROWSE_COUNTRIES_URL);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    browseCountries = data
+      .filter(country => country && country.code && country.name)
+      .map(country => ({
+        name: country.name,
+        code: String(country.code).toUpperCase(),
+        flag: country.flag || '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (browseMode === 'countries') renderCountryList();
+  } catch (err) {
+    console.error('Failed to load countries:', err);
+    browseCountries = null;
+    if (browseMode === 'countries') showCountriesError();
+  }
+}
+
+async function openBrowseCountry(country) {
+  if (browsePlaylistFlight) return;
+  browseCountry = country;
+  browseQuery = '';
+  globalSearchEl.value = '';
+  browseChannels = [];
+  browseMode = 'country';
+  showCountrySurface();
+  channelPickerEl.innerHTML = '<div class="loading">Loading channels...</div>';
+
+  const code = country.code.toLowerCase();
+  if (browsePlaylistCache.has(code)) {
+    browseChannels = browsePlaylistCache.get(code);
+    renderBrowseChannels();
+    return;
+  }
+
+  browsePlaylistFlight = code;
+  try {
+    const response = await fetch(
+      `https://raw.githubusercontent.com/iptv-org/iptv/master/streams/${code}.m3u`
+    );
+    if (response.status === 404) {
+      browseChannels = [];
+    } else if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    } else {
+      browseChannels = parseBrowseM3u(await response.text(), code);
+      browsePlaylistCache.set(code, browseChannels);
+    }
+  } catch (err) {
+    console.error('Failed to load playlist:', err);
+    browseChannels = [];
+    channelPickerEl.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'country-empty';
+    wrap.textContent = 'Failed to load channels.';
+    const retry = document.createElement('button');
+    retry.className = 'retry-btn';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', () => {
+      browsePlaylistFlight = null;
+      openBrowseCountry(country);
+    });
+    wrap.appendChild(retry);
+    channelPickerEl.appendChild(wrap);
+    return;
+  } finally {
+    browsePlaylistFlight = null;
+  }
+  if (browseMode === 'country' && browseCountry === country) {
+    renderBrowseChannels();
+  }
+}
+
+function browseBack() {
+  if (browseMode === 'playing') {
+    teardownPlayback();
+    showCountrySurface();
+    return;
+  }
+  if (browseMode === 'country') {
+    browseMode = 'countries';
+    browseQuery = '';
+    browseCountry = null;
+    globalSearchEl.value = '';
+    globalSearchEl.placeholder = 'Search countries...';
+    showBrowseListChrome();
+    if (browseCountries) renderCountryList();
+    else loadBrowseCountries();
+    return;
+  }
+  browseMode = 'home';
+  browseQuery = '';
+  countryListEl.style.display = 'none';
+  globalSearchEl.value = searchTerm;
+  menuSearchEl.value = searchTerm;
+  showPicker();
+  if (window.allChannels) displayChannels(window.allChannels);
+}
+
+// =============================================================================
 // Back button
 // =============================================================================
 backButtonEl.addEventListener('click', function () {
+  if (browseMode !== 'home') {
+    browseBack();
+    return;
+  }
   if (!isPickerVisible) {
     showPicker();
-    destroyActiveHls();
-    releaseVideoElement(currentVideoElement);
-    releaseVideoElement(currentAudioElement);
-    currentVideoElement = null;
-    currentAudioElement = null;
-    videoContainerEl.innerHTML = '';
-    updateMuteButtonVisibility(false);
-    updatePipButtonVisibility(false);
-    updateQualityButtonVisibility(false);
-    updateFullscreenButtonVisibility(false);
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-    if (document.pictureInPictureElement) {
-      document.exitPictureInPicture().catch(() => {});
-    }
-    releaseWakeLock();
+    teardownPlayback();
   } else {
     toggleSideMenu();
   }
@@ -1246,6 +1749,7 @@ async function loadChannelsFromYAML() {
     playback: ch.playback || null,
     video_url: ch.video_url || null,
     audio_url: ch.audio_url || null,
+    sources: normalizeSources(ch.sources),
   }));
 }
 
@@ -1263,6 +1767,7 @@ function start() {
       displayChannels(channels);
 
       multiViewButtonEl.style.display = 'flex';
+      browseButtonEl.style.display = 'flex';
       updateMuteButtonState(false);
     })
     .catch(error => {
@@ -1385,6 +1890,12 @@ function setupSearch() {
   const searchClose = document.getElementById('searchClose');
 
   function handleSearch(value) {
+    if (browseMode === 'countries' || browseMode === 'country') {
+      browseQuery = value;
+      if (browseMode === 'countries') renderCountryList();
+      else renderBrowseChannels();
+      return;
+    }
     searchTerm = value;
     if (window.allChannels) {
       displayChannels(window.allChannels);
@@ -1411,6 +1922,11 @@ function setupSearch() {
 
   searchClose.addEventListener('click', () => {
     searchContainer.classList.remove('expanded');
+    if (browseMode === 'countries' || browseMode === 'country') {
+      globalSearchEl.value = '';
+      handleSearch('');
+      return;
+    }
     globalSearchEl.value = '';
     menuSearchEl.value = '';
     handleSearch('');
@@ -1437,6 +1953,7 @@ function toggleMultiView() {
 
 function enterMultiView() {
   isMultiViewMode = true;
+  updateSourceButtonVisibility(false);
 
   multiViewButtonEl.classList.add('active');
   multiViewButtonEl.style.display = 'none';
@@ -1447,6 +1964,7 @@ function enterMultiView() {
   videoContainerEl.style.display = 'none';
   channelPickerEl.style.display = 'none';
   backButtonEl.style.display = 'none';
+  browseButtonEl.style.display = 'none';
 
   const { cols: initCols, rows: initRows } = parseGridLayout(currentGridLayout);
   multiViewGridEl.style.gridTemplateColumns = `repeat(${initCols}, 1fr)`;
@@ -1872,6 +2390,7 @@ function loadChannelInSlot(slotIndex, channel) {
   }, { signal });
 
   // Load stream
+  resolveSource(channel);
   const streamUrl = channel.playback === 'split' ? channel.video_url : channel.url;
 
   if (channel.playback === 'mako') {
@@ -2054,6 +2573,10 @@ function exitSlotFullscreen() {
 // =============================================================================
 // Init
 // =============================================================================
+browseButtonEl.addEventListener('click', () => {
+  if (browseMode === 'home') loadBrowseCountries();
+});
+
 window.addEventListener('load', function () {
   start();
   setupSearch();
@@ -2074,6 +2597,8 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     if (isMultiViewMode && fullscreenSlotIndex !== null) {
       exitSlotFullscreen();
+    } else if (browseMode !== 'home') {
+      browseBack();
     } else if (!isPickerVisible) {
       showPicker();
     }
@@ -2081,7 +2606,9 @@ document.addEventListener('keydown', function (e) {
     e.preventDefault();
     toggleMute();
   } else if (e.key === 'h' || e.key === 'H') {
-    if (currentVideoElement) {
+    if (browseMode === 'playing') {
+      browseBack();
+    } else if (currentVideoElement) {
       togglePicker();
     }
   } else if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
@@ -2107,6 +2634,7 @@ document.addEventListener('keydown', function (e) {
       const slot = multiViewSlots[filledSlots[nextPos]];
       if (slot && slot.channel) showToast(slot.channel.name, 'info', 1500);
     } else {
+      if (browseMode !== 'home') return;
       if (!window.allChannels || currentChannelIndex < 0) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         const total = window.allChannels.length;
@@ -2121,6 +2649,7 @@ document.addEventListener('keydown', function (e) {
       }
     }
   } else if (e.key >= '0' && e.key <= '9') {
+    if (browseMode !== 'home') return;
     handleNumericInput(e.key);
   }
 }, true);
@@ -2129,6 +2658,7 @@ document.addEventListener('keydown', function (e) {
 // Numeric channel input
 // =============================================================================
 function handleNumericInput(digit) {
+  if (browseMode !== 'home') return;
   if (!channelInputDisplay) return;
 
   if (channelInputTimer) {
@@ -2234,7 +2764,7 @@ function updateNumpadButtonVisibility(visible) {
   }, { passive: true });
 
   videoContainerEl.addEventListener('touchend', (e) => {
-    if (isMultiViewMode || isPickerVisible) return;
+    if (isMultiViewMode || isPickerVisible || browseMode !== 'home') return;
     if (!window.allChannels || currentChannelIndex < 0) return;
 
     const containerHeight = videoContainerEl.clientHeight;

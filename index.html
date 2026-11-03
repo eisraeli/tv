@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>TV</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="google-site-verification" content="jDk1s6N-IOBTrNM4PV6WqMvZVyTrDHe8nv0tHPHHvaQ" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +19,7 @@
       <div class="logo">TV</div>
       <button id="menuToggleButton" title="Channel List" style="display: none;">☰</button>
       <button id="backButton">← Back to Channels</button>
+      <button id="browseButton" title="Browse countries">Browse</button>
       <button id="multiViewButton" title="Multi-View Mode">▦ Multi-View</button>
       <div id="gridSizeControl" style="display: none; position: relative;">
         <button id="gridSizeButton" title="Grid Size">⊞ 2x2</button>
@@ -31,6 +32,7 @@
         <input type="text" class="search-input" id="globalSearch" placeholder="Search channels...">
         <button class="search-close" id="searchClose">✕</button>
       </div>
+      <button id="sourceButton" title="Stream Source" style="display: none;">Source</button>
       <button id="qualityButton" title="Stream Quality" style="display: none;">HD</button>
       <button id="fullscreenButton" title="Fullscreen" style="display: none;">⛶</button>
       <button id="pipButton" title="Picture-in-Picture" style="display: none;">⧉</button>
@@ -64,6 +66,7 @@
       <div id="channelPicker">
         <div class="loading">Loading channels...</div>
       </div>
+      <div id="countryList" style="display: none;"></div>
       <div id="noResults" class="no-results" style="display: none;">
         No channels found
       </div>
