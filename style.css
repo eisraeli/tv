@@ -22,6 +22,7 @@ body {
   color: var(--text-primary);
   overflow-x: hidden;
   overflow-y: auto;
+  touch-action: manipulation;
   min-height: 100vh;
   min-height: 100dvh;
   position: relative;
