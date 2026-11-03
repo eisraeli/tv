@@ -13,24 +13,43 @@ channels:
     logo: "https://diversityisrael.org.il/wp-content/uploads/kan-200x145.png"
     category: Israel
     url: "https://r.il.cdn-redge.media/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
+    sources:
+      - name: redge
+        url: "https://r.il.cdn-redge.media/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
+      - name: medone
+        url: "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
 
   - name: 12-kanal-il
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Keshet12_2018.svg/1200px-Keshet12_2018.svg.png"
     category: Israel
     url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/keshet_12_hevc/live.livx/playlist.m3u8?fmp4&renditions&dvr=28800000"
+    sources:
+      - name: cloudfront
+        url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/keshet_12_hevc/live.livx/playlist.m3u8?fmp4&renditions&dvr=28800000"
+      - name: mcquack
+        url: "http://stream.mcquack.net/294/index.m3u8"
 
   - name: 13-kanal-il
     logo: "https://upload.wikimedia.org/wikipedia/he/9/91/Reshet13.svg"
     category: Israel
-    playback: split
-    video_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=5500000&videoId=0&renditions&fmp4&dvr=28800000"
-    audio_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=128000&audioId=1&lang=pol&renditions&fmp4&dvr=28800000"
-    url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?fmp4&renditions&dvr=28800000"
+    url: "http://stream.mcquack.net/295/index.m3u8"
+    sources:
+      - name: mcquack
+        url: "http://stream.mcquack.net/295/index.m3u8"
+      - name: cloudfront
+        playback: split
+        video_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=5500000&videoId=0&renditions&fmp4&dvr=28800000"
+        audio_url: "https://d1zqtf09wb8nt5.cloudfront.net/livehls/oil/freetv/live/reshet_13_hevc/live.livx/playlist.m3u8?bitrate=128000&audioId=1&lang=pol&renditions&fmp4&dvr=28800000"
 
   - name: 14-kanal-il
     logo: "https://www.now14.co.il/wp-content/uploads/2022/06/%D7%9C%D7%95%D7%92%D7%95-%D7%A9%D7%A7%D7%95%D7%A3-02-e1659629999469.png"
     category: Israel
     url: "https://n-121-5.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
+    sources:
+      - name: redge-edge
+        url: "https://n-121-5.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
+      - name: redge
+        url: "https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
 
   - name: i24-il
     logo: "https://i.imgur.com/hnGgzEf.png"
@@ -61,7 +80,7 @@ channels:
     url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_88.mp3"
 
   - name: galgalatz
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/GaltzLogo.svg/200px-GaltzLogo.svg.png"
+    logo: "https://upload.wikimedia.org/wikipedia/commons/e/e2/GLGLZ.svg"
     category: Israel Radio
     playback: audio
     url: "https://glzwizzlv.bynetcdn.com/glglz_mp3"
@@ -73,13 +92,13 @@ channels:
     url: "https://glzwizzlv.bynetcdn.com/glz_mp3"
 
   - name: kan-tarbut
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Kan11Logo.svg/200px-Kan11Logo.svg.png"
+    logo: "https://upload.wikimedia.org/wikipedia/commons/e/ed/KanTarbutNewLogo.svg"
     category: Israel Radio
     playback: audio
     url: "https://playerservices.streamtheworld.com/api/livestream-redirect/KAN_TARBUT.mp3"
 
   - name: 100fm
-    logo: "https://play-lh.googleusercontent.com/0x5__zVzrsagQqX4kMTqfOJoXtKbKbmlLlWp-eFLhXCo_6K0TJUk7BVKRTMLEI4ZimI=w240-h480-rw"
+    logo: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Radios_100FM_logo.png"
     category: Israel Radio
     playback: audio
     url: "https://cdn.cybercdn.live/Radios_100FM/Audio/icecast.audio"
@@ -118,11 +137,51 @@ channels:
     logo: "https://upload.wikimedia.org/wikipedia/he/thumb/4/43/Knessetch10.svg/1200px-Knessetch10.svg.png"
     category: Israel
     url: "https://kneset.gostreaming.tv/p2-kneset/_definst_/myStream/chunklist.m3u8"
+    sources:
+      - name: gostreaming
+        url: "https://kneset.gostreaming.tv/p2-kneset/_definst_/myStream/chunklist.m3u8"
+      - name: mcquack
+        url: "http://stream.mcquack.net/48/index.m3u8"
+
+  - name: channel-16
+    logo: "https://ch16israel.vod.immergo.tv/ch16israel/uploaded/bfbd4781-67a7-437e-8f7e-898a5cbc4ab4.png"
+    category: Israel
+    url: "https://ch16israel-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8"
+
+  - name: comedy-channel
+    logo: "https://images.frp1.ott.kaltura.com/Service.svc/GetImage/p/5031/entry_id/fc0d8109a18a4db3b585f154d32bd5b1/version/93/width/288/height/153/"
+    category: Israel
+    url: "https://d15ds134q59udk.cloudfront.net/out/v1/fbba879221d045598540ee783b140fe2/index.m3u8"
+
+  - name: good-life
+    logo: "https://cdn.epg.one/img2/2686.png"
+    category: Israel
+    url: "http://stream.mcquack.net/47/index.m3u8"
+
+  - name: hot-drama
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/HotNewLogo.svg/250px-HotNewLogo.svg.png"
+    category: Israel
+    url: "http://stream.mcquack.net/381/index.m3u8"
+
+  - name: hot-zone
+    logo: "https://upload.wikimedia.org/wikipedia/he/thumb/0/00/HOT_Zone.svg/250px-HOT_Zone.svg.png"
+    category: Israel
+    url: "http://stream.mcquack.net/379/index.m3u8"
+
+  - name: kan-educational
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/KanHinuchit.svg/960px-KanHinuchit.svg.png"
+    category: Israel
+    url: "http://stream.mcquack.net/378/index.m3u8"
 
   - name: ReutersTV.us
     logo: "https://i.imgur.com/6eQ2nCJ.png"
     category: USA
     url: "https://amg00453-reuters-amg00453c1-samsung-de-2111.playouts.now.amagi.tv/playlist/amg00453-reuters-reuters-samsungde/playlist.m3u8"
+    sources:
+      - name: samsung-de
+        url: "https://amg00453-reuters-amg00453c1-samsung-de-2111.playouts.now.amagi.tv/playlist/amg00453-reuters-reuters-samsungde/playlist.m3u8"
+      - name: rakuten-uk
+        url: "https://amg00453-reuters-amg00453c1-rakuten-uk-2110.playouts.now.amagi.tv/playlist/amg00453-reuters-reuters-rakutenuk/playlist.m3u8"
 
   - name: CNNInternationalEurope.us
     logo: "https://i.imgur.com/05S3yYZ.png"
