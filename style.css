@@ -479,6 +479,7 @@ body::before {
   object-fit: cover;
 }
 
+
 .channel-button {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1175,6 +1176,57 @@ html {
 .favorite-btn.active {
   color: #fbbf24;
   opacity: 1;
+}
+
+#browseButton {
+  background: rgba(30, 30, 50, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: none;
+}
+
+#browseButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-color);
+}
+
+.country-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: start;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.country-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.country-row-code {
+  margin-inline-start: auto;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.country-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 2rem;
 }
 
 /* Multi-View Styles */
