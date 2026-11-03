@@ -242,11 +242,35 @@ function updateFullscreenButtonVisibility(visible) {
   fullscreenButtonEl.style.display = visible ? 'flex' : 'none';
 }
 
-function toggleFullscreen() {
+function fullscreenTarget() {
+  return currentVideoElement || videoContainerEl;
+}
+
+function enterPlaybackFullscreen() {
+  const target = fullscreenTarget();
+  if (target.requestFullscreen) {
+    target.requestFullscreen().catch(() => {});
+    return;
+  }
+  if (target.webkitEnterFullscreen) {
+    try { target.webkitEnterFullscreen(); } catch (e) {}
+  }
+}
+
+function exitPlaybackFullscreen() {
   if (document.fullscreenElement) {
-    document.exitFullscreen();
+    document.exitFullscreen().catch(() => {});
+  } else if (currentVideoElement && currentVideoElement.webkitDisplayingFullscreen && currentVideoElement.webkitExitFullscreen) {
+    currentVideoElement.webkitExitFullscreen();
+  }
+}
+
+function toggleFullscreen() {
+  const inNativeFullscreen = currentVideoElement && currentVideoElement.webkitDisplayingFullscreen;
+  if (document.fullscreenElement || inNativeFullscreen) {
+    exitPlaybackFullscreen();
   } else {
-    videoContainerEl.requestFullscreen().catch(() => {});
+    enterPlaybackFullscreen();
   }
 }
 
@@ -254,6 +278,9 @@ fullscreenButtonEl.addEventListener('click', toggleFullscreen);
 
 document.addEventListener('fullscreenchange', () => {
   fullscreenButtonEl.textContent = document.fullscreenElement ? '⛶' : '⛶';
+  if (currentVideoElement && currentVideoElement.paused) {
+    currentVideoElement.play().catch(() => {});
+  }
 });
 
 // Quality selector
@@ -2794,14 +2821,22 @@ function updateNumpadButtonVisibility(visible) {
 
 // =============================================================================
 // Landscape auto-fullscreen on phones
+// Fullscreen the video element. Fullscreening the black container during
+// rotation leaves an empty frame while HLS keeps decoding.
 // =============================================================================
+let orientationFullscreenTimer = null;
 if (isTouchDevice && screen.orientation) {
   screen.orientation.addEventListener('change', () => {
-    const isLandscape = screen.orientation.type.startsWith('landscape');
-    if (isLandscape && !isPickerVisible && !isMultiViewMode && !document.fullscreenElement) {
-      videoContainerEl.requestFullscreen().catch(() => {});
-    } else if (!isLandscape && document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
+    if (orientationFullscreenTimer) clearTimeout(orientationFullscreenTimer);
+    orientationFullscreenTimer = setTimeout(() => {
+      orientationFullscreenTimer = null;
+      const isLandscape = screen.orientation.type.startsWith('landscape');
+      const nativeFullscreen = currentVideoElement && currentVideoElement.webkitDisplayingFullscreen;
+      if (isLandscape && !isPickerVisible && !isMultiViewMode && !document.fullscreenElement && !nativeFullscreen) {
+        enterPlaybackFullscreen();
+      } else if (!isLandscape && (document.fullscreenElement || nativeFullscreen)) {
+        exitPlaybackFullscreen();
+      }
+    }, 300);
   });
 }
