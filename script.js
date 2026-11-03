@@ -257,7 +257,32 @@ function enterPlaybackFullscreen() {
   }
 }
 
+function playbackIsFullscreen() {
+  return !!(document.fullscreenElement || (currentVideoElement && currentVideoElement.webkitDisplayingFullscreen));
+}
+
+// Set only around a source change that can dismiss the iPhone native player.
+// A user exit leaves this false so webkitendfullscreen does not reopen it.
+let reenterNativeFullscreen = false;
+
+function clearNativeFullscreenReenter() {
+  reenterNativeFullscreen = false;
+}
+
+function armNativeFullscreenReenter(video) {
+  if (!video || !video.webkitDisplayingFullscreen || typeof video.webkitEnterFullscreen !== 'function') return;
+  reenterNativeFullscreen = true;
+  if (video._webkitReenterBound) return;
+  video._webkitReenterBound = true;
+  video.addEventListener('webkitendfullscreen', () => {
+    if (!reenterNativeFullscreen) return;
+    reenterNativeFullscreen = false;
+    try { video.webkitEnterFullscreen(); } catch (e) {}
+  });
+}
+
 function exitPlaybackFullscreen() {
+  clearNativeFullscreenReenter();
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   } else if (currentVideoElement && currentVideoElement.webkitDisplayingFullscreen && currentVideoElement.webkitExitFullscreen) {
@@ -488,6 +513,7 @@ function showSourceMenu() {
 function selectSource(channel, sourceName) {
   safeSetItem(sourceStorageKey(channel.name), sourceName);
   resolveSource(channel);
+  const keepFullscreen = playbackIsFullscreen();
   showVideoLoading();
 
   function onLoaded() { hideVideoLoading(); }
@@ -496,13 +522,14 @@ function selectSource(channel, sourceName) {
     console.error('Playback failed:', err);
     showToast('Channel unavailable, please try another', 'error');
     updateSourceButtonVisibility(false);
+    clearNativeFullscreenReenter();
     showPicker();
   }
 
   if (channel.playback === 'split') {
-    playVideoAndAudio(channel.video_url, channel.audio_url).then(onLoaded).catch(onFailed);
+    playVideoAndAudio(channel.video_url, channel.audio_url, keepFullscreen).then(onLoaded).catch(onFailed);
   } else {
-    playStream(channel.url).then(onLoaded).catch(onFailed);
+    playStream(channel.url, keepFullscreen).then(onLoaded).catch(onFailed);
   }
   revealSourceButton(channel);
 }
@@ -832,22 +859,44 @@ menuToggleButtonEl.addEventListener('click', toggleSideMenu);
 // =============================================================================
 // Playback functions
 // =============================================================================
-function playStream(url) {
+function isReusableVideo(element) {
+  return !!(element && element.isConnected && element.tagName === 'VIDEO');
+}
+
+function playStream(url, keepFullscreen = false) {
   return new Promise((resolve, reject) => {
+    const canReuse = isReusableVideo(currentVideoElement) && !currentAudioElement;
+    const preservedMute = canReuse ? currentVideoElement.muted : false;
+    if (canReuse && keepFullscreen) armNativeFullscreenReenter(currentVideoElement);
+    else clearNativeFullscreenReenter();
+
     destroyActiveHls();
-    releaseVideoElement(currentVideoElement);
-    releaseVideoElement(currentAudioElement);
-    currentAudioElement = null;
 
-    const videoElement = document.createElement('video');
-    videoElement.className = 'video-element';
-    videoElement.controls = true;
-    videoElement.autoplay = true;
-    videoElement.muted = false;
-    isMuted = false;
+    let videoElement;
+    if (canReuse) {
+      videoElement = currentVideoElement;
+    } else {
+      releaseVideoElement(currentVideoElement);
+      releaseVideoElement(currentAudioElement);
+      currentAudioElement = null;
 
-    currentVideoElement = videoElement;
-    setupPipListeners(videoElement);
+      videoElement = document.createElement('video');
+      videoElement.className = 'video-element';
+      videoElement.controls = true;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = false;
+      isMuted = false;
+
+      currentVideoElement = videoElement;
+      setupPipListeners(videoElement);
+      videoContainerEl.innerHTML = '';
+      videoContainerEl.appendChild(videoElement);
+    }
+
+    showVideoView();
+    updateMuteButtonVisibility(false);
+    if (keepFullscreen && !canReuse) enterPlaybackFullscreen();
 
     if (Hls.isSupported()) {
       const hls = new Hls(HLS_CONFIG);
@@ -874,47 +923,63 @@ function playStream(url) {
           updateMuteButtonState(isMuted);
           resolve();
         }).catch(reject);
-      });
+      }, { once: true });
     } else {
       reject(new Error('HLS is not supported'));
     }
 
-    videoContainerEl.innerHTML = '';
-    videoContainerEl.appendChild(videoElement);
-    showVideoView();
-    updateMuteButtonVisibility(false);
+    if (canReuse) {
+      videoElement.muted = preservedMute;
+      isMuted = preservedMute;
+    }
   });
 }
 
-function playVideoAndAudio(videoUrl, audioUrl) {
+function playVideoAndAudio(videoUrl, audioUrl, keepFullscreen = false) {
   return new Promise((resolve, reject) => {
+    const canReuse = isReusableVideo(currentVideoElement) && currentAudioElement && currentAudioElement.isConnected;
+    const preservedMute = canReuse ? currentVideoElement.muted : false;
+    if (canReuse && keepFullscreen) armNativeFullscreenReenter(currentVideoElement);
+    else clearNativeFullscreenReenter();
+
     destroyActiveHls();
-    releaseVideoElement(currentVideoElement);
-    releaseVideoElement(currentAudioElement);
 
-    const videoElement = document.createElement('video');
-    videoElement.className = 'video-element';
-    videoElement.controls = true;
-    videoElement.autoplay = true;
-    videoElement.muted = false;
-    isMuted = false;
+    let videoElement;
+    let audioElement;
+    if (canReuse) {
+      videoElement = currentVideoElement;
+      audioElement = currentAudioElement;
+    } else {
+      releaseVideoElement(currentVideoElement);
+      releaseVideoElement(currentAudioElement);
 
-    const audioElement = document.createElement('video');
-    audioElement.style.display = 'none';
-    audioElement.autoplay = true;
-    audioElement.muted = false;
+      videoElement = document.createElement('video');
+      videoElement.className = 'video-element';
+      videoElement.controls = true;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = false;
+      isMuted = false;
 
-    currentVideoElement = videoElement;
-    currentAudioElement = audioElement;
-    setupPipListeners(videoElement);
+      audioElement = document.createElement('video');
+      audioElement.style.display = 'none';
+      audioElement.autoplay = true;
+      audioElement.playsInline = true;
+      audioElement.muted = false;
 
-    function onReady() {
+      currentVideoElement = videoElement;
+      currentAudioElement = audioElement;
+      setupPipListeners(videoElement);
       videoContainerEl.innerHTML = '';
       videoContainerEl.appendChild(videoElement);
       videoContainerEl.appendChild(audioElement);
-      showVideoView();
-      updateMuteButtonVisibility(false);
+    }
 
+    showVideoView();
+    updateMuteButtonVisibility(false);
+    if (keepFullscreen && !canReuse) enterPlaybackFullscreen();
+
+    function onReady() {
       attemptAutoplay(videoElement)
         .then(() => attemptAutoplay(audioElement))
         .then(() => {
@@ -961,9 +1026,15 @@ function playVideoAndAudio(videoUrl, audioUrl) {
     } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
       videoElement.src = videoUrl;
       audioElement.src = audioUrl;
-      videoElement.addEventListener('loadedmetadata', onReady);
+      videoElement.addEventListener('loadedmetadata', onReady, { once: true });
     } else {
       reject(new Error('HLS is not supported'));
+    }
+
+    if (canReuse) {
+      videoElement.muted = preservedMute;
+      audioElement.muted = preservedMute;
+      isMuted = preservedMute;
     }
   });
 }
@@ -1054,8 +1125,9 @@ function startVisualizer(audioElement, canvas) {
   draw();
 }
 
-function playAudioStream(url, logoUrl) {
+function playAudioStream(url, logoUrl, keepFullscreen = false) {
   return new Promise((resolve, reject) => {
+    clearNativeFullscreenReenter();
     destroyActiveHls();
     stopVisualizer();
     releaseVideoElement(currentVideoElement);
@@ -1090,6 +1162,7 @@ function playAudioStream(url, logoUrl) {
     videoContainerEl.appendChild(wrapper);
     showVideoView();
     updateMuteButtonVisibility(false);
+    if (keepFullscreen) enterPlaybackFullscreen();
 
     audioElement.src = url;
     audioElement.load();
@@ -1124,12 +1197,14 @@ function playAudioStream(url, logoUrl) {
 // Unified channel playback
 // =============================================================================
 function playChannel(channel) {
+  const keepFullscreen = playbackIsFullscreen();
+
   if (channel.source === 'browse') {
     currentChannelIndex = -1;
     browseMode = 'playing';
     if (isMenuVisible) toggleSideMenu();
     showVideoLoading();
-    playStream(channel.url).then(() => {
+    playStream(channel.url, keepFullscreen).then(() => {
       hideVideoLoading();
     }).catch(err => {
       hideVideoLoading();
@@ -1171,10 +1246,12 @@ function playChannel(channel) {
     console.error('Playback failed:', err);
     showToast('Channel unavailable, please try another', 'error');
     updateSourceButtonVisibility(false);
+    clearNativeFullscreenReenter();
     showPicker();
   }
 
   if (channel.playback === 'mako') {
+    clearNativeFullscreenReenter();
     destroyActiveHls();
     releaseVideoElement(currentVideoElement);
     releaseVideoElement(currentAudioElement);
@@ -1185,12 +1262,14 @@ function playChannel(channel) {
     videoContainerEl.appendChild(iframe);
     showVideoView();
     hideVideoLoading();
+    if (keepFullscreen) enterPlaybackFullscreen();
   } else if (channel.playback === 'split') {
-    playVideoAndAudio(channel.video_url, channel.audio_url).then(onLoaded).catch(onFailed);
+    playVideoAndAudio(channel.video_url, channel.audio_url, keepFullscreen).then(onLoaded).catch(onFailed);
     revealSourceButton(channel);
   } else if (channel.playback === 'audio') {
-    playAudioStream(channel.url, channel.logo).then(onLoaded).catch(onFailed);
+    playAudioStream(channel.url, channel.logo, keepFullscreen).then(onLoaded).catch(onFailed);
   } else if (channel.playback === 'ipcamlive') {
+    clearNativeFullscreenReenter();
     destroyActiveHls();
     releaseVideoElement(currentVideoElement);
     releaseVideoElement(currentAudioElement);
@@ -1201,8 +1280,9 @@ function playChannel(channel) {
     videoContainerEl.appendChild(iframe);
     showVideoView();
     hideVideoLoading();
+    if (keepFullscreen) enterPlaybackFullscreen();
   } else {
-    playStream(channel.url).then(onLoaded).catch(onFailed);
+    playStream(channel.url, keepFullscreen).then(onLoaded).catch(onFailed);
     revealSourceButton(channel);
   }
 }
@@ -1409,6 +1489,7 @@ function togglePicker() {
 // Browse countries (iptv-org)
 // =============================================================================
 function teardownPlayback() {
+  clearNativeFullscreenReenter();
   destroyActiveHls();
   releaseVideoElement(currentVideoElement);
   releaseVideoElement(currentAudioElement);
